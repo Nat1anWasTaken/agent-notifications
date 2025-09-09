@@ -12,8 +12,17 @@ Note: This is early-stage software. Expect rough edges.
 
 ## Install
 
-- With Cargo (local checkout): `cargo install --path .`
-- Or build locally: `cargo build --release` and use `target/release/anot`
+- With Cargo
+
+```bash
+cargo install agent-notifications
+```
+
+- Or Build Locally
+
+```bash
+cargo install --path .
+```
 
 ## Quick Start (Claude Code)
 
