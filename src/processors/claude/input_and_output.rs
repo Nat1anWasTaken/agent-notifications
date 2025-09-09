@@ -27,13 +27,28 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
         }
     };
 
-    send_notification(&hook_input, &config)?;
+    let output = match send_notification(&hook_input, &config) {
+        Ok(_) => HookOutput {
+            r#continue: Some(true),
+            suppress_output: Some(true),
+            system_message: Some("Notification sent.".to_string()),
+            ..Default::default()
+        },
+        Err(error) => {
+            let output = HookOutput {
+                r#continue: Some(false),
+                suppress_output: Some(true),
+                system_message: Some(format!("Failed to send notification: {error:?}")),
+                ..Default::default()
+            };
 
-    let output = HookOutput {
-        r#continue: Some(true),
-        suppress_output: Some(true),
-        system_message: Some("Notification sent.".to_string()),
-        ..Default::default()
+            print!(
+                "{}",
+                serde_json::to_string(&output).expect("Failed to serialize output")
+            );
+
+            return Err(Error::from(error));
+        }
     };
 
     print!(
@@ -46,14 +61,17 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
 
 pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), Error> {
     // Check if the hook event is allowed by the config
-    if config
+    if !config
         .claude
         .allowed_hooks
         .get(&hook_input.hook_event_name)
         .copied()
         .unwrap_or(false)
     {
-        return Ok(());
+        return Err(Error::msg(format!(
+            "Hook event is not allowed by the configuration: {:?}",
+            hook_input
+        )));
     }
 
     match hook_input.hook_event_name {

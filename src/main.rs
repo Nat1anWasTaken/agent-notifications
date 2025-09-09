@@ -30,7 +30,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Codex,
     Claude,
     Init {
         #[command(subcommand)]
@@ -40,14 +39,7 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum InitCommands {
-    Codex {
-        #[arg(short, long)]
-        config_path: Option<PathBuf>,
-    },
-    Claude {
-        #[arg(short, long)]
-        config_path: Option<PathBuf>,
-    },
+    Claude { claude_config_path: Option<PathBuf> },
 }
 
 fn main() -> Result<(), Error> {
@@ -74,9 +66,6 @@ fn main() -> Result<(), Error> {
     let input = utils::catch_stdin();
 
     match &cli.command {
-        Some(Commands::Codex) => {
-            unimplemented!();
-        }
         Some(Commands::Claude) => {
             process_claude_input(input, &config)?;
         }
