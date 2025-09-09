@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    fmt,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Error;
 use inquire::{Confirm, InquireError, MultiSelect, Select};
@@ -34,15 +38,13 @@ struct EventHookConfiguration {
     hooks: Vec<ActionConfiguration>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 struct ClaudeConfiguration {
     #[serde(default)]
     hooks: HashMap<HookEventName, Vec<EventHookConfiguration>>,
     #[serde(flatten)]
     other: HashMap<String, serde_json::Value>,
 }
-
 
 enum ClaudeCodePathSelection {
     UserSettings(bool),
@@ -159,9 +161,10 @@ fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, E
 fn expand_tilde(path: &Path) -> PathBuf {
     if let Ok(s) = path.to_path_buf().into_os_string().into_string() {
         if let Some(rest) = s.strip_prefix("~/")
-            && let Ok(home) = std::env::var("HOME") {
-                return PathBuf::from(home).join(rest);
-            }
+            && let Ok(home) = std::env::var("HOME")
+        {
+            return PathBuf::from(home).join(rest);
+        }
         return PathBuf::from(s);
     }
     path.to_path_buf()

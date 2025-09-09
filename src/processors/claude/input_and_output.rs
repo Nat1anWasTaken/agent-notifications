@@ -111,14 +111,18 @@ pub fn send_notification(hook_input: &HookInput, _config: &Config) -> Result<(),
             create_claude_notification("The agent has started a new session.")?
         }
         HookEventName::SessionEnd => {
-            let reason = hook_input.reason.as_ref().map(|r| match r {
-                SessionEndReason::Clear => "the user ran /clear.",
-                SessionEndReason::PromptInputExit => {
-                    "the user exited while prompt input was visible."
-                }
-                SessionEndReason::Logout => "the user logged out.",
-                SessionEndReason::Other => "the session ended for unspecified reason.",
-            }).unwrap_or("unknown");
+            let reason = hook_input
+                .reason
+                .as_ref()
+                .map(|r| match r {
+                    SessionEndReason::Clear => "the user ran /clear.",
+                    SessionEndReason::PromptInputExit => {
+                        "the user exited while prompt input was visible."
+                    }
+                    SessionEndReason::Logout => "the user logged out.",
+                    SessionEndReason::Other => "the session ended for unspecified reason.",
+                })
+                .unwrap_or("unknown");
 
             create_claude_notification(&format!(
                 "The agent has ended the session because {}",

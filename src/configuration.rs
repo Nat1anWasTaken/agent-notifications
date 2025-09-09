@@ -6,10 +6,8 @@ use std::{
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Claude {}
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
