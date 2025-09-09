@@ -1,14 +1,22 @@
 [package]
+edition = "2024"
 name = "agent-notifications"
 version = "0.1.0"
-edition = "2024"
 
 [dependencies]
 anyhow = "1.0.99"
-clap = { version = "4.5.46", features = ["derive"] }
+clap = {version = "4.5.46", features = ["derive"]}
 dirs = "6.0.0"
 inquire = "0.7.5"
 notify-rust = "4.11.7"
-serde = { version = "1.0.219", features = ["derive"] }
+serde = {version = "1.0.219", features = ["derive"]}
 serde_json = "1.0.143"
-strum = { version = "0.27.2", features = ["derive"] }
+strum = {version = "0.27.2", features = ["derive"]}
+
+[[bin]]
+name = "agent-notifications"
+path = "src/main.rs"
+
+[[bin]]
+name = "anot"
+path = "src/main.rs"
