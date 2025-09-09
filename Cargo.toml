@@ -2,6 +2,8 @@
 edition = "2024"
 name = "agent-notifications"
 version = "0.1.0"
+description = "A CLI tool for managing agent notifications"
+license = "MIT"
 
 [dependencies]
 anyhow = "1.0.99"
