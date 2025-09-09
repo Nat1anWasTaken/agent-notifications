@@ -1,11 +1,19 @@
 use std::{collections::HashMap, fmt, path::PathBuf};
 
 use anyhow::Error;
-use inquire::{Confirm, MultiSelect, Select};
+use inquire::{Confirm, MultiSelect, Select, InquireError};
 use serde::{Deserialize, Serialize};
 
 use crate::processors::claude::structs::HookEventName;
 use strum::IntoEnumIterator;
+
+fn handle_inquire_error(err: InquireError, context: &str) -> Error {
+    match err {
+        InquireError::OperationCanceled => Error::msg("Operation cancelled by user"),
+        InquireError::OperationInterrupted => Error::msg("Operation interrupted by user"),
+        _ => Error::msg(format!("{}: {}", context, err)),
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -130,9 +138,7 @@ fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, E
         "Select the configuration path for Claude Code. ✓ = file exists, ✗ = file missing",
     )
     .prompt()
-    .or(Err(Error::msg(
-        "Failed to prompt for Claude configuration path",
-    )))?;
+    .map_err(|err| handle_inquire_error(err, "Failed to prompt for Claude configuration path"))?;
 
     let path = match selection {
         ClaudeCodePathSelection::UserSettings(_) => PathBuf::from("~/.claude/settings.json"),
@@ -144,7 +150,7 @@ fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, E
             let custom_path: String = inquire::Text::new("Enter the custom path:")
                 .with_help_message("Provide the full path to the Claude Code settings.json file.")
                 .prompt()
-                .or(Err(Error::msg("Failed to prompt for custom path")))?;
+                .map_err(|err| handle_inquire_error(err, "Failed to prompt for custom path"))?;
 
             PathBuf::from(custom_path)
         }
@@ -173,7 +179,7 @@ fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
         ))
         .with_default(true)
         .prompt()
-        .or(Err(Error::msg("Failed to get user confirmation")))?;
+        .map_err(|err| handle_inquire_error(err, "Failed to get user confirmation"))?;
 
         if !should_create {
             return Err(Error::msg("Operation cancelled by user"));
@@ -207,47 +213,51 @@ fn read_config(path: &PathBuf) -> Result<ClaudeConfiguration, Error> {
     Ok(config)
 }
 
-fn choose_hooks(config: &ClaudeConfiguration) -> Result<Vec<HookEventName>, Error> {
-    let all_hooks: Vec<HookEventName> = HookEventName::iter().collect();
-    let currently_configured: Vec<HookEventName> = config.hooks.keys().cloned().collect();
-    
-    // Create hook descriptions in the same order as all_hooks
-    let hook_descriptions: Vec<(&str, &HookEventName)> = all_hooks.iter().map(|hook| {
-        let description = match hook {
-            HookEventName::Notification => "Custom notifications from the agent",
-            HookEventName::PreToolUse => "Before the agent uses any tool",
-            HookEventName::PostToolUse => "After the agent uses any tool",
-            HookEventName::UserPromptSubmit => "When user submits a prompt",
-            HookEventName::Stop => "When the agent stops responding",
-            HookEventName::SubagentStop => "When a subagent stops responding",
-            HookEventName::PreCompact => "Before conversation compaction",
-            HookEventName::SessionStart => "When a new session starts",
-            HookEventName::SessionEnd => "When a session ends",
-        };
-        (description, hook)
-    }).collect();
-    
-    let options: Vec<String> = hook_descriptions.iter().map(|(desc, hook)| {
-        let configured_marker = if currently_configured.contains(hook) { "✓" } else { " " };
-        format!("[{}] {:?} - {}", configured_marker, hook, desc)
-    }).collect();
-    
-    let default_indices: Vec<usize> = currently_configured
+fn is_our_notification_action(action: &ActionConfiguration) -> bool {
+    action.command.contains("anot") && action.command.contains("claude")
+}
+
+fn has_our_notification_hook(event_hooks: &[EventHookConfiguration]) -> bool {
+    event_hooks
+        .iter()
+        .any(|hook_config| hook_config.hooks.iter().any(is_our_notification_action))
+}
+
+fn get_currently_configured_hooks(config: &ClaudeConfiguration) -> Vec<HookEventName> {
+    config.hooks
+        .iter()
+        .filter_map(|(hook_name, event_hooks)| {
+            has_our_notification_hook(event_hooks)
+                .then_some(hook_name.clone())
+        })
+        .collect()
+}
+
+fn create_hook_option(hook: &HookEventName, currently_configured: &[HookEventName]) -> String {
+    let configured_marker = if currently_configured.contains(hook) { "✓" } else { " " };
+    format!("[{}] {}", configured_marker, hook)
+}
+
+fn find_default_indices(currently_configured: &[HookEventName], all_hooks: &[HookEventName]) -> Vec<usize> {
+    currently_configured
         .iter()
         .filter_map(|hook| all_hooks.iter().position(|h| h == hook))
-        .collect();
-    
-    let selected_strings = MultiSelect::new(
+        .collect()
+}
+
+fn prompt_user_selection(options: &[String], default_indices: &[usize]) -> Result<Vec<String>, Error> {
+    MultiSelect::new(
         "Select which hooks you want to configure for notifications:",
-        options.clone(),
+        options.to_vec(),
     )
     .with_help_message("Use space to select/deselect, arrow keys to navigate, enter to confirm. [✓] = currently configured")
-    .with_default(&default_indices)
+    .with_default(default_indices)
     .prompt()
-    .or(Err(Error::msg("Failed to get hook selection")))?;
-    
+    .map_err(|err| handle_inquire_error(err, "Failed to get hook selection"))
+}
 
-    let selected_hooks: Vec<HookEventName> = selected_strings
+fn convert_selections_to_hooks(selected_strings: Vec<String>, options: &[String], all_hooks: &[HookEventName]) -> Vec<HookEventName> {
+    selected_strings
         .into_iter()
         .filter_map(|selected_string| {
             options
@@ -255,9 +265,22 @@ fn choose_hooks(config: &ClaudeConfiguration) -> Result<Vec<HookEventName>, Erro
                 .position(|option| option == &selected_string)
                 .map(|index| all_hooks[index].clone())
         })
+        .collect()
+}
+
+fn choose_hooks(config: &ClaudeConfiguration) -> Result<Vec<HookEventName>, Error> {
+    let all_hooks: Vec<HookEventName> = HookEventName::iter().collect();
+    let currently_configured = get_currently_configured_hooks(config);
+    
+    let options: Vec<String> = all_hooks
+        .iter()
+        .map(|hook| create_hook_option(hook, &currently_configured))
         .collect();
     
-    Ok(selected_hooks)
+    let default_indices = find_default_indices(&currently_configured, &all_hooks);
+    let selected_strings = prompt_user_selection(&options, &default_indices)?;
+    
+    Ok(convert_selections_to_hooks(selected_strings, &options, &all_hooks))
 }
 
 fn agent_command() -> Result<String, Error> {
@@ -267,28 +290,53 @@ fn agent_command() -> Result<String, Error> {
     Ok(format!("\"{}\" claude", exe_str))
 }
 
+fn create_our_hook_config(command: String) -> EventHookConfiguration {
+    EventHookConfiguration {
+        matcher: "".to_string(),
+        hooks: vec![ActionConfiguration {
+            r#type: HookType::Command,
+            command,
+            timeout: Some(10),
+        }],
+    }
+}
+
+fn remove_our_notification_hooks(config: &mut ClaudeConfiguration) {
+    for (_, event_hooks) in config.hooks.iter_mut() {
+        event_hooks.retain(|hook_config| {
+            !hook_config.hooks.iter().any(is_our_notification_action)
+        });
+    }
+}
+
+fn add_hooks_to_selected_events(
+    config: &mut ClaudeConfiguration, 
+    selected_hooks: Vec<HookEventName>, 
+    our_hook_config: EventHookConfiguration
+) {
+    for event in selected_hooks {
+        config.hooks
+            .entry(event)
+            .or_insert_with(Vec::new)
+            .push(our_hook_config.clone());
+    }
+}
+
+fn cleanup_empty_hook_entries(config: &mut ClaudeConfiguration) {
+    config.hooks.retain(|_, event_hooks| !event_hooks.is_empty());
+}
+
 fn with_selected_notification_hooks(
     mut config: ClaudeConfiguration, 
     command: String, 
     selected_hooks: Vec<HookEventName>
 ) -> ClaudeConfiguration {
-    let hook_config = EventHookConfiguration {
-        matcher: "".to_string(),
-        hooks: vec![ActionConfiguration {
-            r#type: HookType::Command,
-            command: command.clone(),
-            timeout: Some(10),
-        }],
-    };
-
-
-    config.hooks.retain(|hook_name, _| selected_hooks.contains(hook_name));
-
-
-    for event in selected_hooks {
-        config.hooks.insert(event, vec![hook_config.clone()]);
-    }
-
+    let our_hook_config = create_our_hook_config(command);
+    
+    remove_our_notification_hooks(&mut config);
+    add_hooks_to_selected_events(&mut config, selected_hooks, our_hook_config);
+    cleanup_empty_hook_entries(&mut config);
+    
     config
 }
 

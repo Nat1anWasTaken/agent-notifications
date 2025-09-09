@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
 use strum::EnumIter;
 
 /// Hook event names
@@ -15,6 +16,23 @@ pub enum HookEventName {
     PreCompact,
     SessionStart,
     SessionEnd,
+}
+
+impl fmt::Display for HookEventName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            HookEventName::Notification => "Notification",
+            HookEventName::PreToolUse => "PreToolUse",
+            HookEventName::PostToolUse => "PostToolUse",
+            HookEventName::UserPromptSubmit => "UserPromptSubmit",
+            HookEventName::Stop => "Stop",
+            HookEventName::SubagentStop => "SubagentStop",
+            HookEventName::PreCompact => "PreCompact",
+            HookEventName::SessionStart => "SessionStart",
+            HookEventName::SessionEnd => "SessionEnd",
+        };
+        write!(f, "{}", name)
+    }
 }
 
 /// Trigger source for PreCompact
