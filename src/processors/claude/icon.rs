@@ -4,8 +4,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 const CLAUDE_ICON_BYTES: &[u8] = include_bytes!("../../../assets/claude-icon.png");
 
+#[allow(dead_code)]
 fn get_claude_icon_temp_path() -> Result<PathBuf, Error> {
     let temp_dir = std::env::temp_dir();
     let icon_path = temp_dir.join("claude-code-icon.png");

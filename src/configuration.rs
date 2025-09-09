@@ -7,13 +7,9 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Claude {}
 
-impl Default for Claude {
-    fn default() -> Self {
-        Claude {}
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -67,7 +63,7 @@ pub fn initialize_configuration(
     }
 
     if !config_path.exists() {
-        create_default_config(&config_path)?;
+        create_default_config(config_path)?;
     }
 
     let contents = fs::read_to_string(config_path)?;

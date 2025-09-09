@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, path::PathBuf};
+use std::{collections::HashMap, fmt, path::{Path, PathBuf}};
 
 use anyhow::Error;
 use inquire::{Confirm, InquireError, MultiSelect, Select};
@@ -35,6 +35,7 @@ struct EventHookConfiguration {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 struct ClaudeConfiguration {
     #[serde(default)]
     hooks: HashMap<HookEventName, Vec<EventHookConfiguration>>,
@@ -42,14 +43,6 @@ struct ClaudeConfiguration {
     other: HashMap<String, serde_json::Value>,
 }
 
-impl Default for ClaudeConfiguration {
-    fn default() -> Self {
-        ClaudeConfiguration {
-            hooks: HashMap::new(),
-            other: HashMap::new(),
-        }
-    }
-}
 
 enum ClaudeCodePathSelection {
     UserSettings(bool),
@@ -98,8 +91,8 @@ pub fn initialize_claude_configuration(
         println!("📋 Current hook configuration:");
         for (hook, configurations) in &config.hooks {
             println!(
-                "  • {}: {} hook(s) configured",
-                format!("{:?}", hook),
+                "  • {:?}: {} hook(s) configured",
+                hook,
                 configurations.len()
             );
         }
@@ -163,16 +156,15 @@ fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, E
     Ok(path)
 }
 
-fn expand_tilde(path: &PathBuf) -> PathBuf {
-    if let Ok(s) = path.clone().into_os_string().into_string() {
-        if let Some(rest) = s.strip_prefix("~/") {
-            if let Ok(home) = std::env::var("HOME") {
+fn expand_tilde(path: &Path) -> PathBuf {
+    if let Ok(s) = path.to_path_buf().into_os_string().into_string() {
+        if let Some(rest) = s.strip_prefix("~/")
+            && let Ok(home) = std::env::var("HOME") {
                 return PathBuf::from(home).join(rest);
             }
-        }
         return PathBuf::from(s);
     }
-    path.clone()
+    path.to_path_buf()
 }
 
 fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
@@ -342,7 +334,7 @@ fn add_hooks_to_selected_events(
         config
             .hooks
             .entry(event)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(our_hook_config.clone());
     }
 }

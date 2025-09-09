@@ -6,5 +6,5 @@ pub fn catch_stdin() -> String {
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
 
-    return input;
+    input
 }
