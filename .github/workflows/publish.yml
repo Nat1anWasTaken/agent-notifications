@@ -29,14 +29,32 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install cargo-action-fmt
+        run: cargo install cargo-action-fmt --locked
+
+      - name: Cargo check (annotated)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo check -q --message-format=json | cargo-action-fmt
+
+      - name: Compile tests (annotated)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --no-run --message-format=json | cargo-action-fmt
+
       - name: Run tests
         run: cargo test --verbose
 
       - name: Check formatting
         run: cargo fmt --check
 
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
+      - name: Run clippy (annotated)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy -q --message-format=json -- -D warnings | cargo-action-fmt
 
       - name: Publish to crates.io
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
