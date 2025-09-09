@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Error;
-use clap::{Parser, Subcommand, command};
+use clap::{CommandFactory, Parser, Subcommand, command};
 
 use crate::{
     configuration::{get_config_path, initialize_configuration},
@@ -30,7 +30,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Process Claude Code hook events and send desktop notifications
     Claude,
+    /// Initialize configuration for agent notifications
     Init {
         #[command(subcommand)]
         command: Option<InitCommands>,
@@ -39,7 +41,11 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum InitCommands {
-    Claude { claude_config_path: Option<PathBuf> },
+    /// Initialize Claude Code configuration with notification hooks
+    Claude {
+        /// Path to Claude Code settings.json file (optional)
+        claude_config_path: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<(), Error> {
@@ -63,20 +69,31 @@ fn main() -> Result<(), Error> {
     //     _ => println!("Don't be crazy"),
     // }
 
-    let input = utils::catch_stdin();
-
     match &cli.command {
         Some(Commands::Claude) => {
-            process_claude_input(input, &config)?;
+            let input = utils::catch_stdin();
+            process_claude_input(input, &config).ok();
         }
-        Some(Commands::Init { command: _ }) => {
-            // println!("Subcommand 'init' was used");
-            unimplemented!();
+        Some(Commands::Init { command }) => match command {
+            Some(InitCommands::Claude { claude_config_path }) => {
+                crate::processors::claude::init::initialize_claude_configuration(
+                    claude_config_path,
+                )?;
+            }
+            None => {
+                let mut cmd = Cli::command();
+                if let Some(init_cmd) = cmd.find_subcommand_mut("init") {
+                    init_cmd.print_help().ok();
+                }
+            }
+        },
+        None => {
+            let mut cmd = Cli::command();
+            cmd.print_help().ok();
         }
-        None => {}
     }
 
-    return Ok(());
+    Ok(())
 
     // Continued program logic goes here...
 }

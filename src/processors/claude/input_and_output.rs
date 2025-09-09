@@ -18,12 +18,9 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
                 ..Default::default()
             };
 
-            print!(
-                "{}",
-                serde_json::to_string(&output).expect("Failed to serialize output")
-            );
+            print!("{}", serde_json::to_string(&output)?);
 
-            return Err(Error::from(error));
+            return Err(Error::msg("Failed to parse input JSON"));
         }
     };
 
@@ -31,12 +28,11 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
         Ok(_) => HookOutput {
             r#continue: Some(true),
             suppress_output: Some(true),
-            system_message: Some("Notification sent.".to_string()),
             ..Default::default()
         },
         Err(error) => {
             let output = HookOutput {
-                r#continue: Some(false),
+                r#continue: Some(true),
                 suppress_output: Some(true),
                 system_message: Some(format!("Failed to send notification: {error:?}")),
                 ..Default::default()
@@ -47,7 +43,7 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
                 serde_json::to_string(&output).expect("Failed to serialize output")
             );
 
-            return Err(Error::from(error));
+            return Err(error);
         }
     };
 
@@ -60,7 +56,7 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
 }
 
 pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), Error> {
-    // Check if the hook event is allowed by the config
+    // If the hook event is not allowed by the configuration, treat as a no-op.
     if !config
         .claude
         .allowed_hooks
@@ -68,10 +64,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
         .copied()
         .unwrap_or(false)
     {
-        return Err(Error::msg(format!(
-            "Hook event is not allowed by the configuration: {:?}",
-            hook_input
-        )));
+        return Ok(());
     }
 
     match hook_input.hook_event_name {

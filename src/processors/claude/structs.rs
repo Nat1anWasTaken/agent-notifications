@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use strum::EnumIter;
 
 /// Hook event names
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, EnumIter)]
 #[serde(rename_all = "PascalCase")]
 pub enum HookEventName {
     PreToolUse,
