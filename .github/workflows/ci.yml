@@ -2,9 +2,9 @@ name: Test and Lint
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,7 +31,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-action-fmt
-        run: cargo install cargo-action-fmt --locked
+        run: cargo install cargo-action-fmt --locked --force
 
       - name: Cargo check (annotated)
         shell: bash
