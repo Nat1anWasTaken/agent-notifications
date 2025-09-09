@@ -94,6 +94,4 @@ fn main() -> Result<(), Error> {
     }
 
     Ok(())
-
-    // Continued program logic goes here...
 }

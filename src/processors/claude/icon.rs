@@ -22,9 +22,7 @@ pub fn set_claude_icon(notification: &mut Notification) -> Result<(), Error> {
     #[cfg(target_os = "macos")]
     {
         notification.appname("Claude Code");
-        // Try different macOS system icons that work with notifications
-        // These are the most commonly working notification icons on macOS
-        notification.icon("NSInfo");  // Info icon - blue circle with "i"
+        notification.icon("NSInfo"); 
     }
     
     #[cfg(not(target_os = "macos"))]

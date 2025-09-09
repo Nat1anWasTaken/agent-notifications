@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
 };
@@ -7,28 +6,12 @@ use std::{
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use crate::processors::claude::structs::HookEventName;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Claude {
-    pub allowed_hooks: HashMap<HookEventName, bool>,
-}
+pub struct Claude {}
 
 impl Default for Claude {
     fn default() -> Self {
-        let allowed_hooks = HashMap::from([
-            (HookEventName::Notification, true),
-            (HookEventName::PreToolUse, false),
-            (HookEventName::PostToolUse, false),
-            (HookEventName::UserPromptSubmit, false),
-            (HookEventName::Stop, true),
-            (HookEventName::SubagentStop, false),
-            (HookEventName::PreCompact, false),
-            (HookEventName::SessionStart, true),
-            (HookEventName::SessionEnd, true),
-        ]);
-
-        Claude { allowed_hooks }
+        Claude {}
     }
 }
 

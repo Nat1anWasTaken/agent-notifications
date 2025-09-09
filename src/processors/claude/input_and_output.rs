@@ -66,17 +66,7 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
     Ok(())
 }
 
-pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), Error> {
-    if !config
-        .claude
-        .allowed_hooks
-        .get(&hook_input.hook_event_name)
-        .copied()
-        .unwrap_or(false)
-    {
-        return Ok(());
-    }
-
+pub fn send_notification(hook_input: &HookInput, _config: &Config) -> Result<(), Error> {
     match hook_input.hook_event_name {
         HookEventName::PreToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
