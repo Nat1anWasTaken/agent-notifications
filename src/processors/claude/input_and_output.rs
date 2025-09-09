@@ -3,8 +3,19 @@ use notify_rust::Notification;
 
 use crate::{
     configuration::Config,
-    processors::claude::structs::{HookEventName, HookInput, HookOutput, SessionEndReason},
+    processors::claude::{
+        icon::set_claude_icon,
+        structs::{HookEventName, HookInput, HookOutput, SessionEndReason},
+    },
 };
+
+fn create_claude_notification(body: &str) -> Result<(), Error> {
+    let mut notification = Notification::new();
+    notification.summary("Claude Code").body(body);
+    set_claude_icon(&mut notification)?;
+    notification.show()?;
+    Ok(())
+}
 
 pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error> {
     let hook_input = match serde_json::from_str::<HookInput>(&input) {
@@ -52,11 +63,10 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
         serde_json::to_string(&output).expect("Failed to serialize output")
     );
 
-    return Ok(());
+    Ok(())
 }
 
 pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), Error> {
-    // If the hook event is not allowed by the configuration, treat as a no-op.
     if !config
         .claude
         .allowed_hooks
@@ -71,18 +81,12 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
         HookEventName::PreToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
 
-            Notification::new()
-                .summary("Claude Code")
-                .body(format!("The agent is trying to use {}", tool_name).as_str())
-                .show()?;
+            create_claude_notification(&format!("The agent is trying to use {}", tool_name))?
         }
         HookEventName::PostToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
 
-            Notification::new()
-                .summary("Claude Code")
-                .body(format!("The agent has used {}", tool_name).as_str())
-                .show()?;
+            create_claude_notification(&format!("The agent has used {}", tool_name))?
         }
         HookEventName::Notification => {
             let message = hook_input
@@ -90,30 +94,16 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 .as_deref()
                 .unwrap_or("The agent didn't provide any message.");
 
-            Notification::new()
-                .summary("Claude Code")
-                .body(message)
-                .show()?;
+            create_claude_notification(message)?
         }
         HookEventName::UserPromptSubmit => {
             let prompt = hook_input.prompt.as_deref().unwrap_or("unknown");
 
-            Notification::new()
-                .summary("Claude Code")
-                .body(format!("User prompt submitted: {}", prompt).as_str())
-                .show()?;
+            create_claude_notification(&format!("User prompt submitted: {}", prompt))?
         }
-        HookEventName::Stop => {
-            Notification::new()
-                .summary("Claude Code")
-                .body("The agent has stopped responding.")
-                .show()?;
-        }
+        HookEventName::Stop => create_claude_notification("The agent has stopped responding.")?,
         HookEventName::SubagentStop => {
-            Notification::new()
-                .summary("Claude Code")
-                .body("A subagent has stopped responding.")
-                .show()?;
+            create_claude_notification("A subagent has stopped responding.")?
         }
         HookEventName::PreCompact => {
             let trigger = hook_input
@@ -122,22 +112,13 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 .map(|t| format!("{:?}", t))
                 .unwrap_or_else(|| "unknown".to_string());
 
-            Notification::new()
-                .summary("Claude Code")
-                .body(
-                    format!(
-                        "The agent is about to compact the conversation. Trigger: {}",
-                        trigger
-                    )
-                    .as_str(),
-                )
-                .show()?;
+            create_claude_notification(&format!(
+                "The agent is about to compact the conversation. Trigger: {}",
+                trigger
+            ))?
         }
         HookEventName::SessionStart => {
-            Notification::new()
-                .summary("Claude Code")
-                .body("The agent has started a new session.")
-                .show()?;
+            create_claude_notification("The agent has started a new session.")?
         }
         HookEventName::SessionEnd => {
             let reason = match hook_input.reason.as_ref().map(|r| match r {
@@ -152,10 +133,10 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 None => "unknown",
             };
 
-            Notification::new()
-                .summary("Claude Code")
-                .body(format!("The agent has ended the session because {}", reason).as_str())
-                .show()?;
+            create_claude_notification(&format!(
+                "The agent has ended the session because {}",
+                reason
+            ))?
         }
     }
 
