@@ -60,10 +60,6 @@ enum InitCommands {
 }
 
 fn main() -> Result<(), Error> {
-    unsafe {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
-    }
-
     let cli = Cli::parse();
 
     let config_path = get_config_path().expect("Failed to determine config path");
