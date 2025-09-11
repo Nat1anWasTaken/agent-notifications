@@ -43,10 +43,10 @@ fn create_claude_notification(body: &str) -> Result<(), Error> {
 
         notification.summary("Claude Code").body(body);
 
-        if let Ok(p) = get_claude_icon_temp_path() {
-            if let Some(s) = p.to_str() {
-                notification.icon(s);
-            }
+        if let Ok(p) = get_claude_icon_temp_path()
+            && let Some(s) = p.to_str()
+        {
+            notification.icon(s);
         }
 
         notification.show()?;
