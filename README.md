@@ -128,9 +128,9 @@ Currently, internal config is minimal and safe to ignore unless you want a custo
 
 Icon behavior differs by platform:
 
-- macOS: The app icon (left side of the notification) is only available when Claude Desktop is installed because macOS requires a signed app bundle to supply the notification’s application icon. If Claude Desktop is present, notifications use the Claude app’s icon. If not, macOS shows the Terminal icon on the left and uses the agent image as the content image (right side of the notification). Install Claude Desktop: https://claude.ai/download
-- Unix (Linux/BSD): Icons are supported out of the box. The agent icon is displayed without requiring an app bundle, assuming a desktop notification daemon is running.
-- Windows: Icon support is not implemented yet.
+- **macOS**: The app icon (left side of the notification) is only available when Claude Desktop is installed because macOS requires a signed app bundle to supply the notification’s application icon. If Claude Desktop is present, notifications use the Claude app’s icon. If not, macOS shows the Terminal icon on the left and uses the agent image as the content image (right side of the notification). Install Claude Desktop: https://claude.ai/download
+- **Unix (Linux/BSD)**: Icons are supported out of the box. The agent icon is displayed without requiring an app bundle, assuming a desktop notification daemon is running.
+- **Windows**: Icon support is not implemented yet.
 
 ## Screenshot
 
