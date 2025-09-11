@@ -4,9 +4,11 @@ use anyhow::Error;
 use clap::{CommandFactory, Parser, Subcommand, command};
 
 use crate::{
-    configuration::{get_config_path, initialize_configuration},
-    processors::claude::input_and_output::process_claude_input,
-    processors::codex::input_and_output::process_codex_input,
+    configuration::{get_config_path, initialize_configuration, reset_configuration},
+    processors::{
+        claude::input_and_output::process_claude_input,
+        codex::input_and_output::process_codex_input,
+    },
 };
 
 mod configuration;
@@ -18,9 +20,6 @@ mod utils;
 struct Cli {
     #[arg(short, long, value_name = "FILE")]
     config: Option<PathBuf>,
-
-    #[arg(short, long)]
-    reset_config: bool,
 
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
@@ -43,6 +42,7 @@ enum Commands {
         #[command(subcommand)]
         command: Option<InitCommands>,
     },
+    Reset,
 }
 
 #[derive(Subcommand)]
@@ -66,12 +66,10 @@ fn main() -> Result<(), Error> {
 
     let cli = Cli::parse();
 
-    let config = initialize_configuration(
-        &cli.config
-            .clone()
-            .unwrap_or(get_config_path().expect("Config path returned None.")),
-        cli.reset_config,
-    )?;
+    let config_path = get_config_path().expect("Failed to determine config path");
+
+    let config =
+        initialize_configuration(cli.config.clone().unwrap_or(config_path.clone()).as_path())?;
 
     // match cli.debug {
     //     0 => println!("Debug mode is off"),
@@ -108,6 +106,15 @@ fn main() -> Result<(), Error> {
                 }
             }
         },
+        Some(Commands::Reset) => {
+            match reset_configuration(config_path.as_path()) {
+                Ok(_) => println!(
+                    "Configuration reset to default at {}",
+                    config_path.display()
+                ),
+                Err(e) => eprintln!("Failed to reset configuration: {}", e),
+            };
+        }
         None => {
             let mut cmd = Cli::command();
             cmd.print_help().ok();

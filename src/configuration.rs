@@ -74,14 +74,7 @@ pub fn create_default_config(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn initialize_configuration(
-    config_path: &Path,
-    reset_configuration: bool,
-) -> Result<Config, Error> {
-    if config_path.exists() && reset_configuration {
-        fs::remove_file(config_path).ok();
-    }
-
+pub fn initialize_configuration(config_path: &Path) -> Result<Config, Error> {
     if !config_path.exists() {
         create_default_config(config_path)?;
     }
@@ -91,4 +84,14 @@ pub fn initialize_configuration(
     let config: Config = serde_json::from_str(&contents)?;
 
     Ok(config)
+}
+
+pub fn reset_configuration(config_path: &Path) -> Result<(), Error> {
+    if config_path.exists() {
+        fs::remove_file(config_path)?;
+    }
+
+    create_default_config(config_path)?;
+
+    Ok(())
 }
