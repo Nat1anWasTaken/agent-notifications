@@ -224,8 +224,8 @@ echo '{
 ```json
 {
   "version": 1,
-  "claude": { "pretend": true },
-  "codex": { "pretend": false }
+  "claude": { "pretend": true, "sound": true },
+  "codex": { "pretend": false, "sound": true }
 }
 ```
 
@@ -233,7 +233,9 @@ echo '{
 
 - `version`: Internal schema version. Leave as `1`.
 - `claude.pretend` (macOS only): When `true`, `anot` pretends to be the Claude app for notifications so the left-side app icon shows as Claude. When `false`, the notification uses the Terminal app identity and shows the Claude icon as the content image on the right.
+- `claude.sound` (macOS only): When `true`, `anot` plays a notification sound for Claude notifications.
 - `codex.pretend` (macOS only): When `true`, `anot` attempts to pretend to be the ChatGPT app for notifications. The ChatGPT app appears to enforce stricter checks, so pretending is unreliable. It’s recommended to keep this `false` so the Codex/ChatGPT icon is shown as the content image instead.
+- `codex.sound` (macOS only): When `true`, `anot` plays a notification sound for Codex notifications.
 
 Defaults are `claude.pretend = true`, `codex.pretend = false`.
 

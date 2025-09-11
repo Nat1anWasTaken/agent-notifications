@@ -24,6 +24,11 @@ fn create_claude_notification(
     );
     #[cfg(target_os = "macos")]
     {
+        use mac_notification_sys::Notification;
+        use mac_notification_sys::Sound;
+        use mac_notification_sys::get_bundle_identifier;
+        use mac_notification_sys::set_application;
+
         let mut notification = Notification::new();
 
         notification.title("Claude Code").message(body).sound(true);
@@ -43,6 +48,10 @@ fn create_claude_notification(
                 notification.content_image(s);
                 debug!(icon = s, "attached icon to notification");
             }
+        }
+
+        if config.claude.sound {
+            notification.sound(Sound::Default);
         }
 
         notification.send()?;
