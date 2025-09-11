@@ -6,6 +6,7 @@ use std::{
 use anyhow::Error;
 use inquire::{Confirm, InquireError, Select};
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, instrument, warn};
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 struct CodexConfiguration {
     #[serde(default)]
@@ -71,16 +72,19 @@ impl fmt::Display for CodexConfigPathSelection {
     }
 }
 
+#[instrument(skip(codex_config_path))]
 pub fn initialize_codex_configuration(codex_config_path: &Option<PathBuf>) -> Result<(), Error> {
     let chosen_path = choose_config_path(codex_config_path)?;
     let expanded_path = expand_tilde(&chosen_path);
 
+    debug!(chosen = %chosen_path.display(), expanded = %expanded_path.display(), "resolved Codex config path");
     ensure_path_exists(&expanded_path)?;
 
     let mut config = read_config(&expanded_path)?;
     let notify_cmd = notify_command()?;
 
     if let Some(current) = &config.notify {
+        info!(?current, "existing Codex notify configuration detected");
         println!("📋 Current notify configuration:");
         println!("  • notify = {:?}", current);
         println!();
@@ -101,15 +105,18 @@ pub fn initialize_codex_configuration(codex_config_path: &Option<PathBuf>) -> Re
             ExistingNotifyAction::Override => {
                 config.set_notify(notify_cmd);
                 write_config(&expanded_path, &config)?;
+                info!(path = %expanded_path.display(), "overrode notify configuration");
                 println!("✅ Updated: notify now uses this tool");
                 println!("📁 Configuration written to: {}", expanded_path.display());
             }
             ExistingNotifyAction::Keep => {
+                info!("kept existing notify configuration");
                 println!("ℹ️  Keeping existing notify setting. No changes made.");
             }
             ExistingNotifyAction::Remove => {
                 config.clear_notify();
                 write_config(&expanded_path, &config)?;
+                info!(path = %expanded_path.display(), "removed notify configuration");
                 println!("🧹 Removed notify configuration");
                 println!("📁 Configuration written to: {}", expanded_path.display());
             }
@@ -124,9 +131,11 @@ pub fn initialize_codex_configuration(codex_config_path: &Option<PathBuf>) -> Re
             config.set_notify(notify_cmd);
             write_config(&expanded_path, &config)?;
 
+            info!(path = %expanded_path.display(), "configured notify with this tool");
             println!("✅ Successfully configured notify");
             println!("📁 Configuration written to: {}", expanded_path.display());
         } else {
+            info!("user declined to configure notify");
             println!("ℹ️  No changes made.");
         }
     }
@@ -134,8 +143,10 @@ pub fn initialize_codex_configuration(codex_config_path: &Option<PathBuf>) -> Re
     Ok(())
 }
 
+#[instrument(skip(codex_config_path))]
 fn choose_config_path(codex_config_path: &Option<PathBuf>) -> Result<PathBuf, Error> {
     if let Some(p) = codex_config_path {
+        info!(path = %p.display(), "using provided path");
         return Ok(p.clone());
     }
 
@@ -161,14 +172,21 @@ fn choose_config_path(codex_config_path: &Option<PathBuf>) -> Result<PathBuf, Er
     .map_err(|err| handle_inquire_error(err, "Failed to prompt for Codex configuration path"))?;
 
     let path = match selection {
-        CodexConfigPathSelection::CodexHomeConfig(_) => codex_home_path,
-        CodexConfigPathSelection::DotCodexConfig(_) => dot_codex_path,
+        CodexConfigPathSelection::CodexHomeConfig(_) => {
+            info!(path = %codex_home_path.display(), exists = codex_home_exists, "selected $CODEX_HOME/config.toml");
+            codex_home_path
+        }
+        CodexConfigPathSelection::DotCodexConfig(_) => {
+            info!(path = %dot_codex_path.display(), exists = dot_codex_exists, "selected ~/.codex/config.toml");
+            dot_codex_path
+        }
         CodexConfigPathSelection::CustomPath => {
             let custom_path: String = inquire::Text::new("Enter the custom path:")
                 .with_help_message("Provide the full path to the Codex config.toml file.")
                 .prompt()
                 .map_err(|err| handle_inquire_error(err, "Failed to prompt for custom path"))?;
 
+            info!(path = %custom_path, "selected custom path");
             PathBuf::from(custom_path)
         }
     };
@@ -181,6 +199,7 @@ fn expand_tilde(path: &Path) -> PathBuf {
         if let Some(rest) = s.strip_prefix("~/")
             && let Ok(home) = std::env::var("HOME")
         {
+            debug!(original = %s, expanded = %PathBuf::from(home.clone()).join(rest).display(), "expanding ~ to HOME");
             return PathBuf::from(home).join(rest);
         }
         return PathBuf::from(s);
@@ -188,6 +207,7 @@ fn expand_tilde(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
+#[instrument]
 fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
     if !path.exists() {
         let should_create = Confirm::new(&format!(
@@ -199,6 +219,7 @@ fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
         .map_err(|err| handle_inquire_error(err, "Failed to get user confirmation"))?;
 
         if !should_create {
+            info!(path = %path.display(), "user declined to create file");
             return Err(Error::msg("Operation cancelled by user"));
         }
 
@@ -208,15 +229,18 @@ fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
         }
 
         std::fs::write(path, "").or(Err(Error::msg("Failed to create configuration file")))?;
+        info!(path = %path.display(), "created empty config file");
     }
     Ok(())
 }
 
+#[instrument]
 fn read_config(path: &PathBuf) -> Result<CodexConfiguration, Error> {
     let config_data = std::fs::read_to_string(path)
         .map_err(|e| Error::msg(format!("Failed to read the configuration file: {}", e)))?;
 
     if config_data.trim().is_empty() {
+        debug!(path = %path.display(), "empty file; using default configuration");
         return Ok(CodexConfiguration::default());
     }
 
@@ -226,21 +250,35 @@ fn read_config(path: &PathBuf) -> Result<CodexConfiguration, Error> {
             e, config_data
         ))
     })?;
+    debug!(
+        has_notify = config
+            .notify
+            .as_ref()
+            .map(|v| !v.is_empty())
+            .unwrap_or(false),
+        other_keys = config.other.len(),
+        "parsed Codex configuration"
+    );
     Ok(config)
 }
 
+#[instrument]
 fn notify_command() -> Result<Vec<String>, Error> {
     let current_exe =
         std::env::current_exe().or(Err(Error::msg("Failed to get current executable path")))?;
     let exe_str = current_exe.to_string_lossy().to_string();
-    Ok(vec![exe_str, "codex".to_string()])
+    let cmd = vec![exe_str, "codex".to_string()];
+    debug!(?cmd, "constructed notify command");
+    Ok(cmd)
 }
 
+#[instrument]
 fn write_config(path: &PathBuf, config: &CodexConfiguration) -> Result<(), Error> {
     let new_config = toml::to_string_pretty(config).or(Err(Error::msg(
         "Failed to serialize the configuration to TOML",
     )))?;
     std::fs::write(path, new_config)
         .or(Err(Error::msg("Failed to write the configuration file")))?;
+    info!(path = %path.display(), "wrote Codex configuration");
     Ok(())
 }

@@ -1,6 +1,9 @@
-// Claude input/output processing
-
 use anyhow::Error;
+#[cfg(target_os = "macos")]
+use mac_notification_sys::{Notification, get_bundle_identifier, set_application};
+#[cfg(not(target_os = "macos"))]
+use notify_rust::Notification;
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     configuration::Config,
@@ -14,6 +17,11 @@ fn create_claude_notification(
     body: &str,
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] config: &Config,
 ) -> Result<(), Error> {
+    debug!(
+        body_len = body.len(),
+        pretend = config.claude.pretend,
+        "preparing Claude notification"
+    );
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::Notification;
@@ -31,11 +39,14 @@ fn create_claude_notification(
             && config.claude.pretend
         {
             set_application(&bundle_id).ok();
+            debug!(bundle_id = %bundle_id, "using pretend app bundle for notification");
         } else {
             set_application("com.apple.Terminal").ok();
+            debug!("using Terminal bundle for notification");
 
             if let Some(s) = icon_path.to_str() {
                 notification.content_image(s);
+                debug!(icon = s, "attached icon to notification");
             }
         }
 
@@ -44,11 +55,10 @@ fn create_claude_notification(
         }
 
         notification.send()?;
+        debug!("sent macOS notification (Claude)");
     }
     #[cfg(not(target_os = "macos"))]
     {
-        use notify_rust::Notification;
-
         let mut notification = Notification::new();
 
         notification.summary("Claude Code").body(body);
@@ -57,13 +67,16 @@ fn create_claude_notification(
             && let Some(s) = p.to_str()
         {
             notification.icon(s);
+            debug!(icon = s, "attached icon to notification");
         }
 
         notification.show()?;
+        debug!("sent Linux notification (Claude)");
     }
     Ok(())
 }
 
+#[instrument(skip(input, config), level = "debug")]
 pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error> {
     let hook_input = match serde_json::from_str::<HookInput>(&input) {
         Ok(hook_input) => hook_input,
@@ -78,6 +91,7 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
 
             print!("{}", serde_json::to_string(&output)?);
 
+            error!(error = ?error, "failed to parse Claude input JSON");
             return Err(Error::msg("Failed to parse input JSON"));
         }
     };
@@ -101,6 +115,7 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
                 serde_json::to_string(&output).expect("Failed to serialize output")
             );
 
+            error!(error = ?error, "failed to send Claude notification");
             return Err(error);
         }
     };
@@ -109,14 +124,26 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
         "{}",
         serde_json::to_string(&output).expect("Failed to serialize output")
     );
+    debug!(
+        suppress_output = output.suppress_output.unwrap_or(false),
+        cont = output.r#continue.unwrap_or(false),
+        has_system_message = output
+            .system_message
+            .as_ref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false),
+        "emitted Claude hook output JSON"
+    );
 
     Ok(())
 }
 
+#[instrument(skip(hook_input, config), fields(event = ?hook_input.hook_event_name), level = "debug")]
 pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), Error> {
     match hook_input.hook_event_name {
         HookEventName::PreToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
+            info!(tool = tool_name, "Claude: pre tool use");
 
             create_claude_notification(
                 &format!("The agent is trying to use {}", tool_name),
@@ -125,6 +152,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
         }
         HookEventName::PostToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
+            info!(tool = tool_name, "Claude: post tool use");
 
             create_claude_notification(&format!("The agent has used {}", tool_name), config)?
         }
@@ -133,18 +161,34 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 .message
                 .as_deref()
                 .unwrap_or("The agent didn't provide any message.");
+            let preview: String = message.chars().take(120).collect();
+            info!("Claude: generic notification");
+            debug!(
+                message_len = message.len(),
+                preview = preview,
+                "constructed notification message"
+            );
 
             create_claude_notification(message, config)?
         }
         HookEventName::UserPromptSubmit => {
             let prompt = hook_input.prompt.as_deref().unwrap_or("unknown");
+            let preview: String = prompt.chars().take(120).collect();
+            info!("Claude: user prompt submitted");
+            debug!(
+                prompt_len = prompt.len(),
+                preview = preview,
+                "user prompt preview"
+            );
 
             create_claude_notification(&format!("User prompt submitted: {}", prompt), config)?
         }
         HookEventName::Stop => {
+            info!("Claude: session stop");
             create_claude_notification("The agent has stopped responding.", config)?
         }
         HookEventName::SubagentStop => {
+            info!("Claude: subagent stop");
             create_claude_notification("A subagent has stopped responding.", config)?
         }
         HookEventName::PreCompact => {
@@ -153,6 +197,8 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 .as_ref()
                 .map(|t| format!("{:?}", t))
                 .unwrap_or_else(|| "unknown".to_string());
+            info!("Claude: pre compact");
+            debug!(trigger = trigger, "compaction trigger");
 
             create_claude_notification(
                 &format!(
@@ -163,6 +209,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
             )?
         }
         HookEventName::SessionStart => {
+            info!("Claude: session start");
             create_claude_notification("The agent has started a new session.", config)?
         }
         HookEventName::SessionEnd => {
@@ -178,6 +225,8 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                     SessionEndReason::Other => "the session ended for unspecified reason.",
                 })
                 .unwrap_or("unknown");
+            info!("Claude: session end");
+            debug!(reason = reason, "session end reason");
 
             create_claude_notification(
                 &format!("The agent has ended the session because {}", reason),
