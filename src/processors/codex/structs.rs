@@ -1,0 +1,21 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum NotificationType {
+    AgentTurnComplete,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct CodexNotificationInput {
+    pub r#type: NotificationType,
+    #[serde(default)]
+    pub turn_id: Option<String>,
+    #[serde(default)]
+    pub input_messages: Option<Vec<String>>,
+    #[serde(default)]
+    pub last_assistant_message: Option<String>,
+}
