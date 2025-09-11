@@ -6,13 +6,33 @@ use std::{
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Claude {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Claude {
+    pub pretend: bool,
+}
+
+impl Default for Claude {
+    fn default() -> Self {
+        Claude { pretend: true }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Codex {
+    pub pretend: bool,
+}
+
+impl Default for Codex {
+    fn default() -> Self {
+        Codex { pretend: false }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub version: u32,
     pub claude: Claude,
+    pub codex: Codex,
 }
 
 impl Default for Config {
@@ -20,6 +40,7 @@ impl Default for Config {
         Config {
             version: 1,
             claude: Claude::default(),
+            codex: Codex::default(),
         }
     }
 }

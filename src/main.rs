@@ -6,6 +6,7 @@ use clap::{CommandFactory, Parser, Subcommand, command};
 use crate::{
     configuration::{get_config_path, initialize_configuration},
     processors::claude::input_and_output::process_claude_input,
+    processors::codex::input_and_output::process_codex_input,
 };
 
 mod configuration;
@@ -30,8 +31,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Process Claude Code hook events and send desktop notifications
+    /// Process Claude Code hook events and send desktop notifications (You aren't meant to use this directly. It's called by Claude Code)
     Claude,
+    /// Process Codex notifications and send desktop notifications (You aren't meant to use this directly. It's called by Codex)
+    Codex {
+        /// Notification JSON passed by Codex as a single CLI arg. If absent, read stdin.
+        notification: Option<String>,
+    },
     /// Initialize configuration for agent notifications
     Init {
         #[command(subcommand)]
@@ -45,6 +51,11 @@ enum InitCommands {
     Claude {
         /// Path to Claude Code settings.json file (optional)
         claude_config_path: Option<PathBuf>,
+    },
+    /// Initialize Codex configuration with notification hooks
+    Codex {
+        /// Path to Codex config.toml file (optional)
+        codex_config_path: Option<PathBuf>,
     },
 }
 
@@ -74,11 +85,21 @@ fn main() -> Result<(), Error> {
             let input = utils::catch_stdin();
             process_claude_input(input, &config).ok();
         }
+        Some(Commands::Codex { notification }) => {
+            let input = match notification {
+                Some(s) => s.clone(),
+                None => utils::catch_stdin(),
+            };
+            process_codex_input(input, &config).ok();
+        }
         Some(Commands::Init { command }) => match command {
             Some(InitCommands::Claude { claude_config_path }) => {
                 crate::processors::claude::init::initialize_claude_configuration(
                     claude_config_path,
                 )?;
+            }
+            Some(InitCommands::Codex { codex_config_path }) => {
+                crate::processors::codex::init::initialize_codex_configuration(codex_config_path)?;
             }
             None => {
                 let mut cmd = Cli::command();

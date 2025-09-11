@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-fn create_claude_notification(body: &str) -> Result<(), Error> {
+fn create_claude_notification(body: &str, config: &Config) -> Result<(), Error> {
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::Notification;
@@ -23,7 +23,9 @@ fn create_claude_notification(body: &str) -> Result<(), Error> {
 
         let icon_path = get_claude_icon_temp_path().unwrap_or_default();
 
-        if let Some(bundle_id) = get_bundle_identifier("Claude") {
+        if let Some(bundle_id) = get_bundle_identifier("Claude")
+            && config.claude.pretend
+        {
             set_application(&bundle_id).ok();
         } else {
             set_application("com.apple.Terminal").ok();
@@ -103,17 +105,20 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
     Ok(())
 }
 
-pub fn send_notification(hook_input: &HookInput, _config: &Config) -> Result<(), Error> {
+pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), Error> {
     match hook_input.hook_event_name {
         HookEventName::PreToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
 
-            create_claude_notification(&format!("The agent is trying to use {}", tool_name))?
+            create_claude_notification(
+                &format!("The agent is trying to use {}", tool_name),
+                config,
+            )?
         }
         HookEventName::PostToolUse => {
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
 
-            create_claude_notification(&format!("The agent has used {}", tool_name))?
+            create_claude_notification(&format!("The agent has used {}", tool_name), config)?
         }
         HookEventName::Notification => {
             let message = hook_input
@@ -121,16 +126,18 @@ pub fn send_notification(hook_input: &HookInput, _config: &Config) -> Result<(),
                 .as_deref()
                 .unwrap_or("The agent didn't provide any message.");
 
-            create_claude_notification(message)?
+            create_claude_notification(message, config)?
         }
         HookEventName::UserPromptSubmit => {
             let prompt = hook_input.prompt.as_deref().unwrap_or("unknown");
 
-            create_claude_notification(&format!("User prompt submitted: {}", prompt))?
+            create_claude_notification(&format!("User prompt submitted: {}", prompt), config)?
         }
-        HookEventName::Stop => create_claude_notification("The agent has stopped responding.")?,
+        HookEventName::Stop => {
+            create_claude_notification("The agent has stopped responding.", config)?
+        }
         HookEventName::SubagentStop => {
-            create_claude_notification("A subagent has stopped responding.")?
+            create_claude_notification("A subagent has stopped responding.", config)?
         }
         HookEventName::PreCompact => {
             let trigger = hook_input
@@ -139,13 +146,16 @@ pub fn send_notification(hook_input: &HookInput, _config: &Config) -> Result<(),
                 .map(|t| format!("{:?}", t))
                 .unwrap_or_else(|| "unknown".to_string());
 
-            create_claude_notification(&format!(
-                "The agent is about to compact the conversation. Trigger: {}",
-                trigger
-            ))?
+            create_claude_notification(
+                &format!(
+                    "The agent is about to compact the conversation. Trigger: {}",
+                    trigger
+                ),
+                config,
+            )?
         }
         HookEventName::SessionStart => {
-            create_claude_notification("The agent has started a new session.")?
+            create_claude_notification("The agent has started a new session.", config)?
         }
         HookEventName::SessionEnd => {
             let reason = hook_input
@@ -161,10 +171,10 @@ pub fn send_notification(hook_input: &HookInput, _config: &Config) -> Result<(),
                 })
                 .unwrap_or("unknown");
 
-            create_claude_notification(&format!(
-                "The agent has ended the session because {}",
-                reason
-            ))?
+            create_claude_notification(
+                &format!("The agent has ended the session because {}", reason),
+                config,
+            )?
         }
     }
 
