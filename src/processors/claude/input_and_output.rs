@@ -1,19 +1,56 @@
+// Claude input/output processing
+
 use anyhow::Error;
-use notify_rust::Notification;
 
 use crate::{
     configuration::Config,
     processors::claude::{
-        icon::set_claude_icon,
+        icon::get_claude_icon_temp_path,
         structs::{HookEventName, HookInput, HookOutput, SessionEndReason},
     },
 };
 
 fn create_claude_notification(body: &str) -> Result<(), Error> {
-    let mut notification = Notification::new();
-    notification.summary("Claude Code").body(body);
-    set_claude_icon(&mut notification)?;
-    notification.show()?;
+    #[cfg(target_os = "macos")]
+    {
+        use mac_notification_sys::Notification;
+        use mac_notification_sys::get_bundle_identifier;
+        use mac_notification_sys::set_application;
+
+        let mut notification = Notification::new();
+
+        notification.title("Claude Code").message(body).sound(true);
+
+        let icon_path = get_claude_icon_temp_path().unwrap_or_default();
+
+        if let Some(bundle_id) = get_bundle_identifier("Claude") {
+            set_application(&bundle_id).ok();
+        } else {
+            set_application("com.apple.Terminal").ok();
+
+            if let Some(s) = icon_path.to_str() {
+                notification.content_image(s);
+            }
+        }
+
+        notification.send()?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        use notify_rust::Notification;
+
+        let mut notification = Notification::new();
+
+        notification.summary("Claude Code").body(body);
+
+        if let Ok(p) = get_claude_icon_temp_path() {
+            if let Some(s) = p.to_str() {
+                notification.icon(s);
+            }
+        }
+
+        notification.show()?;
+    }
     Ok(())
 }
 
