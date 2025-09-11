@@ -156,7 +156,29 @@ echo '{
 - Override with `--config <FILE>`
 - Reset with `--reset-config`
 
-Currently, internal config is minimal and safe to ignore unless you want a custom path.
+### Format
+
+```json
+{
+  "version": 1,
+  "claude": { "pretend": true },
+  "codex": { "pretend": false }
+}
+```
+
+### Options
+
+- `version`: Internal schema version. Leave as `1`.
+- `claude.pretend` (macOS only): When `true`, `anot` pretends to be the Claude app for notifications so the left-side app icon shows as Claude. When `false`, the notification uses the Terminal app identity and shows the Claude icon as the content image on the right.
+- `codex.pretend` (macOS only): When `true`, `anot` attempts to pretend to be the ChatGPT app for notifications. The ChatGPT app appears to enforce stricter checks, so pretending is unreliable. It’s recommended to keep this `false` so the Codex/ChatGPT icon is shown as the content image instead.
+
+Defaults are `claude.pretend = true`, `codex.pretend = false`.
+
+### Platform Notes
+
+- macOS: Pretend mode controls whether the notification uses the target app’s bundle (left-side icon) vs. Terminal + a content image. If the target app isn’t installed or pretend is disabled, you’ll see the Terminal app on the left and the agent icon as the content image.
+- Linux/BSD: Pretend is ignored; the agent icon is shown via the notification daemon.
+- Windows: Not currently implemented.
 
 ## Uninstall / Remove Hooks
 
