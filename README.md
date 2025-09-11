@@ -28,7 +28,10 @@ cargo install --path .
 
 1. Run the initializer and follow prompts:
 
-   - `anot init claude`
+   ```
+   anot init claude
+   ```
+
    - Pick where to write hooks: `~/.claude/settings.json`, `.claude/settings.json`, or `.claude/settings.local.json`.
    - Select which events should trigger notifications.
 
@@ -42,7 +45,10 @@ It edits your chosen Claude Code settings file and adds hook entries that execut
 
 1. Run the initializer and follow prompts:
 
-   - `anot init codex`
+   ```
+   anot init codex
+   ```
+
    - Pick where to write config: `$CODEX_HOME/config.toml`, `~/.codex/config.toml`, or provide a custom path.
    - If a `notify` command already exists, choose whether to override, keep, or remove it.
 
