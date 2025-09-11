@@ -250,7 +250,15 @@ fn read_config(path: &PathBuf) -> Result<CodexConfiguration, Error> {
             e, config_data
         ))
     })?;
-    debug!(has_notify = config.notify.as_ref().map(|v| !v.is_empty()).unwrap_or(false), other_keys = config.other.len(), "parsed Codex configuration");
+    debug!(
+        has_notify = config
+            .notify
+            .as_ref()
+            .map(|v| !v.is_empty())
+            .unwrap_or(false),
+        other_keys = config.other.len(),
+        "parsed Codex configuration"
+    );
     Ok(config)
 }
 

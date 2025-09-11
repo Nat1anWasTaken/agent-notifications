@@ -1,9 +1,9 @@
 use anyhow::Error;
 #[cfg(target_os = "macos")]
-use mac_notification_sys::{get_bundle_identifier, set_application, Notification};
+use mac_notification_sys::{Notification, get_bundle_identifier, set_application};
 #[cfg(not(target_os = "macos"))]
 use notify_rust::Notification;
-use tracing::{debug, error, info, warn, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     configuration::Config,
@@ -118,7 +118,11 @@ pub fn process_claude_input(input: String, config: &Config) -> Result<(), Error>
     debug!(
         suppress_output = output.suppress_output.unwrap_or(false),
         cont = output.r#continue.unwrap_or(false),
-        has_system_message = output.system_message.as_ref().map(|s| !s.is_empty()).unwrap_or(false),
+        has_system_message = output
+            .system_message
+            .as_ref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false),
         "emitted Claude hook output JSON"
     );
 
@@ -150,7 +154,11 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 .unwrap_or("The agent didn't provide any message.");
             let preview: String = message.chars().take(120).collect();
             info!("Claude: generic notification");
-            debug!(message_len = message.len(), preview = preview, "constructed notification message");
+            debug!(
+                message_len = message.len(),
+                preview = preview,
+                "constructed notification message"
+            );
 
             create_claude_notification(message, config)?
         }
@@ -158,7 +166,11 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
             let prompt = hook_input.prompt.as_deref().unwrap_or("unknown");
             let preview: String = prompt.chars().take(120).collect();
             info!("Claude: user prompt submitted");
-            debug!(prompt_len = prompt.len(), preview = preview, "user prompt preview");
+            debug!(
+                prompt_len = prompt.len(),
+                preview = preview,
+                "user prompt preview"
+            );
 
             create_claude_notification(&format!("User prompt submitted: {}", prompt), config)?
         }

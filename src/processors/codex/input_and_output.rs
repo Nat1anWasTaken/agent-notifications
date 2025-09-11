@@ -1,9 +1,9 @@
 use anyhow::Error;
 #[cfg(target_os = "macos")]
-use mac_notification_sys::{get_bundle_identifier, set_application, Notification};
+use mac_notification_sys::{Notification, get_bundle_identifier, set_application};
 #[cfg(not(target_os = "macos"))]
 use notify_rust::Notification;
-use tracing::{debug, error, info, warn, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     configuration::Config,
@@ -120,7 +120,11 @@ pub fn send_notification(
             let body = format!("Turn Completed: {}", preferred_message);
             let preview: String = preferred_message.chars().take(120).collect();
             info!("Codex: agent turn complete");
-            debug!(message_len = preferred_message.len(), preview = preview, "chosen message");
+            debug!(
+                message_len = preferred_message.len(),
+                preview = preview,
+                "chosen message"
+            );
 
             create_codex_notification(&body, config)?;
         }
