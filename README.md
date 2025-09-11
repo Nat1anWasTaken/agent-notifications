@@ -9,7 +9,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Nat1anWasTaken/agent-notifications">
-    <img src="assets/icon.png" alt="Logo" width="80" height="80">
+    <img src="assets/readme/icon.png" alt="Logo" width="80" height="80">
   </a>
 
 <h3 align="center">Agent Notifications</h3>
@@ -260,7 +260,7 @@ Icon behavior differs by platform:
 
 ## Screenshot
 
-![macOS Notification](assets/macos-notification.png)
+![macOS Notification](assets/readme/macos-notification.png)
 
 ## Troubleshooting
 
