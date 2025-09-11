@@ -6,7 +6,7 @@ use std::{
 use anyhow::Error;
 use inquire::{Confirm, InquireError, Select};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 struct CodexConfiguration {
     #[serde(default)]

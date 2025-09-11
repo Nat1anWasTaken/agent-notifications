@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::processors::claude::structs::HookEventName;
 use strum::IntoEnumIterator;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 fn handle_inquire_error(err: InquireError, context: &str) -> Error {
     match err {
