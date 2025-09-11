@@ -4,7 +4,7 @@ edition = "2024"
 exclude = ["assets/readme/"]
 license = "GPL-3.0"
 name = "agent-notifications"
-version = "0.4.0"
+version = "0.4.1"
 
 [dependencies]
 anyhow = "1.0.99"
