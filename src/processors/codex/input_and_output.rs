@@ -6,7 +6,10 @@ use crate::{
     processors::codex::structs::{CodexNotificationInput, NotificationType},
 };
 
-fn create_codex_notification(body: &str, config: &Config) -> Result<(), Error> {
+fn create_codex_notification(
+    body: &str,
+    #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] config: &Config,
+) -> Result<(), Error> {
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::Notification;
