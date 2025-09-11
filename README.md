@@ -6,7 +6,7 @@ Note: This is early-stage software. Expect rough edges.
 
 ## Features
 
-- Agent hook integration (Claude Code today; Codex and other terminal agents planned)
+- Agent hook integration (Claude Code and Codex; more agents planned)
 - Notifications for multiple events (pre/post tool use, notifications, prompts, start/stop, etc.)
 - macOS and Linux desktop support (via `notify-rust`)
 
@@ -37,6 +37,24 @@ cargo install --path .
 ### What the initializer does
 
 It edits your chosen Claude Code settings file and adds hook entries that execute the `anot claude` command on selected events. Re-running the initializer updates/removes prior `anot` hooks and applies your latest selection.
+
+## Quick Start (Codex)
+
+1. Run the initializer and follow prompts:
+
+   - `anot init codex`
+   - Pick where to write config: `$CODEX_HOME/config.toml`, `~/.codex/config.toml`, or provide a custom path.
+   - If a `notify` command already exists, choose whether to override, keep, or remove it.
+
+2. You’re done. Codex will invoke `anot codex` to show notifications when events fire.
+
+### What the initializer does (Codex)
+
+It sets the `notify` command in Codex’s `config.toml` to point to this tool, e.g.:
+
+```toml
+notify = ["/absolute/path/to/anot", "codex"]
+```
 
 ## Manual Configuration (optional)
 
@@ -77,6 +95,14 @@ Notes:
 - `Notification`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `PreCompact`, `SessionStart`, `SessionEnd` don’t require a `matcher`.
 - `PreToolUse` and `PostToolUse` support `matcher` (exact, regex, `*`, or empty string).
 
+### Manual Configuration (Codex)
+
+In Codex’s `config.toml`, set `notify` to execute this tool:
+
+```toml
+notify = ["/absolute/path/to/anot", "codex"]
+```
+
 ## CLI
 
 - `anot` global options:
@@ -88,6 +114,8 @@ Notes:
 - Commands:
   - `anot init claude [<path-to-settings.json>]`: Interactive setup for Claude Code hooks. If no path is provided, you’ll be prompted to choose.
   - `anot claude`: Processes a Claude Code hook event from stdin and emits JSON hook output. Used by the hooks you configure.
+  - `anot init codex`: Interactive setup for Codex `notify` in `config.toml`. If no path is provided, you’ll be prompted to choose.
+  - `anot codex [<notification-json>]`: Processes a Codex notification payload. Used by the hooks you configure.
 
 View help: `anot --help`, `anot init --help`
 
@@ -109,6 +137,17 @@ Expected:
 - A desktop notification appears.
 - The tool writes a JSON response to stdout (suppressed by Claude Code in normal operation).
 
+You can also simulate a Codex notification:
+
+```bash
+echo '{
+  "type": "agent-turn-complete",
+  "turn-id": "abc123",
+  "input-messages": ["Run tests"],
+  "last-assistant-message": "All tests passed"
+}' | anot codex
+```
+
 ## Configuration File
 
 `anot` keeps its own config at:
@@ -123,6 +162,8 @@ Currently, internal config is minimal and safe to ignore unless you want a custo
 
 - Run `anot init claude` and deselect all events to remove existing `anot` hooks from the chosen settings file.
 - Or manually delete the relevant entries in your Claude Code settings.
+
+For Codex, run `anot init codex` and choose “Remove the notify configuration” to clear the `notify` entry, or edit your `config.toml` and remove the `notify` line.
 
 ## Notification Icons
 
