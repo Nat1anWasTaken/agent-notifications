@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::processors::claude::structs::HookEventName;
 use strum::IntoEnumIterator;
+use tracing::{debug, info, instrument, warn};
 
 fn handle_inquire_error(err: InquireError, context: &str) -> Error {
     match err {
@@ -77,6 +78,7 @@ impl fmt::Display for ClaudeCodePathSelection {
     }
 }
 
+#[instrument(skip(claude_config_path))]
 pub fn initialize_claude_configuration(
     claude_config_path: &Option<PathBuf>,
 ) -> Result<(), anyhow::Error> {
@@ -84,12 +86,17 @@ pub fn initialize_claude_configuration(
     let expanded_path = expand_tilde(&chosen_path);
     let config_exists = expanded_path.exists();
 
+    debug!(chosen = %chosen_path.display(), expanded = %expanded_path.display(), exists = config_exists, "resolved Claude settings path");
     ensure_path_exists(&expanded_path)?;
 
     let mut config = read_config(&expanded_path)?;
     let command = agent_command()?;
 
     if config_exists && !config.hooks.is_empty() {
+        info!(
+            hooks_entries = config.hooks.len(),
+            "existing Claude hooks detected"
+        );
         println!("📋 Current hook configuration:");
         for (hook, configurations) in &config.hooks {
             println!(
@@ -102,6 +109,7 @@ pub fn initialize_claude_configuration(
     }
 
     let selected_hooks = choose_hooks(&config)?;
+    debug!(selected = ?selected_hooks, "user selected hooks");
     config = with_selected_notification_hooks(config, command, selected_hooks);
     write_config(&expanded_path, &config)?;
 
@@ -111,8 +119,10 @@ pub fn initialize_claude_configuration(
     Ok(())
 }
 
+#[instrument(skip(claude_config_path))]
 fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, Error> {
     if let Some(p) = claude_config_path {
+        info!(path = %p.display(), "using provided path");
         return Ok(p.clone());
     }
 
@@ -140,9 +150,16 @@ fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, E
     .map_err(|err| handle_inquire_error(err, "Failed to prompt for Claude configuration path"))?;
 
     let path = match selection {
-        ClaudeCodePathSelection::UserSettings(_) => PathBuf::from("~/.claude/settings.json"),
-        ClaudeCodePathSelection::ProjectSettings(_) => PathBuf::from(".claude/settings.json"),
-        ClaudeCodePathSelection::LocalProjectSettings(_) => {
+        ClaudeCodePathSelection::UserSettings(exists) => {
+            info!(exists, path = %PathBuf::from("~/.claude/settings.json").display(), "selected user settings");
+            PathBuf::from("~/.claude/settings.json")
+        }
+        ClaudeCodePathSelection::ProjectSettings(exists) => {
+            info!(exists, path = %PathBuf::from(".claude/settings.json").display(), "selected project settings");
+            PathBuf::from(".claude/settings.json")
+        }
+        ClaudeCodePathSelection::LocalProjectSettings(exists) => {
+            info!(exists, path = %PathBuf::from(".claude/settings.local.json").display(), "selected local project settings");
             PathBuf::from(".claude/settings.local.json")
         }
         ClaudeCodePathSelection::CustomPath => {
@@ -151,6 +168,7 @@ fn choose_config_path(claude_config_path: &Option<PathBuf>) -> Result<PathBuf, E
                 .prompt()
                 .map_err(|err| handle_inquire_error(err, "Failed to prompt for custom path"))?;
 
+            info!(path = %custom_path, "selected custom path");
             PathBuf::from(custom_path)
         }
     };
@@ -163,6 +181,7 @@ fn expand_tilde(path: &Path) -> PathBuf {
         if let Some(rest) = s.strip_prefix("~/")
             && let Ok(home) = std::env::var("HOME")
         {
+            debug!(original = %s, expanded = %PathBuf::from(home.clone()).join(rest).display(), "expanding ~ to HOME");
             return PathBuf::from(home).join(rest);
         }
         return PathBuf::from(s);
@@ -170,6 +189,7 @@ fn expand_tilde(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
+#[instrument]
 fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
     if !path.exists() {
         let should_create = Confirm::new(&format!(
@@ -181,6 +201,7 @@ fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
         .map_err(|err| handle_inquire_error(err, "Failed to get user confirmation"))?;
 
         if !should_create {
+            info!(path = %path.display(), "user declined to create Claude settings file");
             return Err(Error::msg("Operation cancelled by user"));
         }
 
@@ -199,10 +220,12 @@ fn ensure_path_exists(path: &PathBuf) -> Result<(), Error> {
 
         std::fs::write(path, config_json)
             .or(Err(Error::msg("Failed to create configuration file")))?;
+        info!(path = %path.display(), "created initial Claude settings file");
     }
     Ok(())
 }
 
+#[instrument]
 fn read_config(path: &PathBuf) -> Result<ClaudeConfiguration, Error> {
     let config_data = std::fs::read_to_string(path)
         .map_err(|e| Error::msg(format!("Failed to read the configuration file: {}", e)))?;
@@ -213,6 +236,7 @@ fn read_config(path: &PathBuf) -> Result<ClaudeConfiguration, Error> {
             e, config_data
         ))
     })?;
+    debug!(hooks_entries = config.hooks.len(), "parsed Claude settings");
     Ok(config)
 }
 
@@ -308,7 +332,8 @@ fn agent_command() -> Result<String, Error> {
     let current_exe =
         std::env::current_exe().or(Err(Error::msg("Failed to get current executable path")))?;
     let exe_str = current_exe.to_string_lossy().to_string();
-    Ok(format!("\"{}\" claude", exe_str))
+    let cmd = format!("\"{}\" claude", exe_str);
+    Ok(cmd)
 }
 
 fn create_our_hook_config(command: String) -> EventHookConfiguration {
@@ -362,10 +387,12 @@ fn with_selected_notification_hooks(
     config
 }
 
+#[instrument]
 fn write_config(path: &PathBuf, config: &ClaudeConfiguration) -> Result<(), Error> {
     let new_config = serde_json::to_string_pretty(config)
         .or(Err(Error::msg("Failed to serialize the configuration")))?;
     std::fs::write(path, new_config)
         .or(Err(Error::msg("Failed to write the configuration file")))?;
+    info!(path = %path.display(), "wrote Claude settings");
     Ok(())
 }
