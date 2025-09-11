@@ -62,14 +62,14 @@ pub fn get_config_path() -> Option<PathBuf> {
 }
 
 pub fn get_logs_dir() -> PathBuf {
-    if let Some(config_file) = get_config_path() {
-        if let Some(parent) = config_file.parent() {
-            return parent.join("logs");
-        }
+    if let Some(config_file) = get_config_path()
+        && let Some(parent) = config_file.parent()
+    {
+        return parent.join("logs");
     }
 
     let base = dirs::config_dir()
-        .unwrap_or_else(|| std::env::temp_dir())
+        .unwrap_or_else(std::env::temp_dir)
         .join("agent_notifications");
     base.join("logs")
 }
