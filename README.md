@@ -1,3 +1,34 @@
+<a name="readme-top"></a>
+[![Contributors](https://img.shields.io/github/contributors/Nat1anWasTaken/agent-notifications.svg?style=for-the-badge)](https://github.com/Nat1anWasTaken/agent-notifications/graphs/contributors)
+[![Forks](https://img.shields.io/github/forks/Nat1anWasTaken/agent-notifications.svg?style=for-the-badge)](https://github.com/Nat1anWasTaken/agent-notifications/network/members)
+[![Stargazers](https://img.shields.io/github/stars/Nat1anWasTaken/agent-notifications.svg?style=for-the-badge)](https://github.com/Nat1anWasTaken/agent-notifications/stargazers)
+[![Issues](https://img.shields.io/github/issues/Nat1anWasTaken/agent-notifications.svg?style=for-the-badge)](https://github.com/Nat1anWasTaken/agent-notifications/issues)
+[![GNU General Public License](https://img.shields.io/github/license/Nat1anWasTaken/agent-notifications.svg?style=for-the-badge)](https://github.com/Nat1anWasTaken/agent-notifications/blob/main/LICENSE)
+
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/Nat1anWasTaken/agent-notifications">
+    <img src="assets/icon.png" alt="Logo" width="80" height="80">
+  </a>
+
+<h3 align="center">Agent Notifications</h3>
+
+  <p align="center">
+    Desktop notifications for your coding agents.
+    <br />
+    <a href="https://github.com/Nat1anWasTaken/agent-notifications"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/Nat1anWasTaken/agent-notifications">View Demo</a>
+    ·
+    <a href="https://github.com/Nat1anWasTaken/agent-notifications/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/Nat1anWasTaken/agent-notifications/issues">Request Feature</a>
+
+  </p>
+</div>
+
 # Agent Notifications (anot)
 
 Desktop notifications for your coding agents.
