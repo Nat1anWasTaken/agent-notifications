@@ -19,7 +19,6 @@ impl CodexConfiguration {
         self.notify = Some(cmd);
     }
 
-    #[allow(dead_code)]
     fn clear_notify(&mut self) {
         self.notify = None;
     }
