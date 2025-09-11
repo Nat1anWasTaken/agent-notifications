@@ -29,6 +29,32 @@
   </p>
 </div>
 
+<details>
+<summary>Table of Contents</summary>
+
+- [Agent Notifications (anot)](#agent-notifications-anot)
+- [Features](#features)
+- [Install](#install)
+- [Quick Start (Claude Code)](#quick-start-claude-code)
+  - [What the initializer does](#what-the-initializer-does)
+- [Quick Start (Codex)](#quick-start-codex)
+  - [What the initializer does (Codex)](#what-the-initializer-does-codex)
+- [Manual Configuration (optional)](#manual-configuration-optional)
+  - [Manual Configuration (Codex)](#manual-configuration-codex)
+- [CLI](#cli)
+- [Test Locally](#test-locally)
+- [Configuration File](#configuration-file)
+  - [Format](#format)
+  - [Options](#options)
+  - [Platform Notes](#platform-notes)
+- [Uninstall / Remove Hooks](#uninstall--remove-hooks)
+- [Notification Icons](#notification-icons)
+- [Screenshot](#screenshot)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+</details>
+
 # Agent Notifications (anot)
 
 Desktop notifications for your coding agents.
