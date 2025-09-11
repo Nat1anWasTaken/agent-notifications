@@ -13,6 +13,7 @@ fn create_codex_notification(
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::Notification;
+        use mac_notification_sys::Sound;
         use mac_notification_sys::get_bundle_identifier;
         use mac_notification_sys::set_application;
 
@@ -33,6 +34,10 @@ fn create_codex_notification(
                 notification.content_image(s);
             }
         };
+
+        if config.codex.sound {
+            notification.sound(Sound::Default);
+        }
 
         notification.send()?;
     }

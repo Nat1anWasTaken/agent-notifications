@@ -17,6 +17,7 @@ fn create_claude_notification(
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::Notification;
+        use mac_notification_sys::Sound;
         use mac_notification_sys::get_bundle_identifier;
         use mac_notification_sys::set_application;
 
@@ -36,6 +37,10 @@ fn create_claude_notification(
             if let Some(s) = icon_path.to_str() {
                 notification.content_image(s);
             }
+        }
+
+        if config.claude.sound {
+            notification.sound(Sound::Default);
         }
 
         notification.send()?;

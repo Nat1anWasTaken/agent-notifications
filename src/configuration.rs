@@ -9,23 +9,30 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claude {
     pub pretend: bool,
+    pub sound: bool,
 }
 
 impl Default for Claude {
     fn default() -> Self {
-        Claude { pretend: true }
+        Claude {
+            pretend: true,
+            sound: true,
+        }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Codex {
     pub pretend: bool,
+    pub sound: bool,
 }
 
-#[allow(clippy::derivable_impls)] // We might add more configurations later, so supress this lint for now.
 impl Default for Codex {
     fn default() -> Self {
-        Codex { pretend: false }
+        Codex {
+            pretend: false,
+            sound: true,
+        }
     }
 }
 
