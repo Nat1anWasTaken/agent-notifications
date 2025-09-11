@@ -22,6 +22,7 @@ pub struct Codex {
     pub pretend: bool,
 }
 
+#[allow(clippy::derivable_impls)] // We might add more configurations later, so supress this lint for now.
 impl Default for Codex {
     fn default() -> Self {
         Codex { pretend: false }
