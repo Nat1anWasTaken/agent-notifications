@@ -1,6 +1,4 @@
 use anyhow::Error;
-#[cfg(target_os = "macos")]
-use mac_notification_sys::{Notification, get_bundle_identifier, set_application};
 #[cfg(not(target_os = "macos"))]
 use notify_rust::Notification;
 use tracing::{debug, error, info, instrument, warn};
@@ -12,6 +10,7 @@ use crate::{
 };
 
 fn create_codex_notification(
+    summary: &str,
     body: &str,
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] config: &Config,
 ) -> Result<(), Error> {
@@ -29,7 +28,9 @@ fn create_codex_notification(
 
         let mut notification = Notification::new();
 
-        notification.title("Codex").message(body).sound(true);
+        let title = format!("Codex: {}", &summary);
+
+        notification.title(&title).message(body).sound(true);
 
         let icon_path = get_codex_icon_path().unwrap_or_default();
 
@@ -59,7 +60,9 @@ fn create_codex_notification(
     {
         let mut notification = Notification::new();
 
-        notification.summary("Codex").body(body);
+        let title = format!("Codex: {}", &summary);
+
+        notification.summary(&title).body(body);
 
         if let Ok(p) = get_codex_icon_path()
             && let Some(s) = p.to_str()
@@ -135,7 +138,7 @@ pub fn send_notification(
                 "chosen message"
             );
 
-            create_codex_notification(&body, config)?;
+            create_codex_notification(notification.r#type.as_str(), &body, config)?;
         }
         NotificationType::Unknown => {
             warn!(

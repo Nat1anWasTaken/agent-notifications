@@ -1,6 +1,4 @@
 use anyhow::Error;
-#[cfg(target_os = "macos")]
-use mac_notification_sys::{Notification, get_bundle_identifier, set_application};
 #[cfg(not(target_os = "macos"))]
 use notify_rust::Notification;
 use tracing::{debug, error, info, instrument, warn};
@@ -14,6 +12,7 @@ use crate::{
 };
 
 fn create_claude_notification(
+    summary: &str,
     body: &str,
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] config: &Config,
 ) -> Result<(), Error> {
@@ -31,7 +30,9 @@ fn create_claude_notification(
 
         let mut notification = Notification::new();
 
-        notification.title("Claude Code").message(body).sound(true);
+        let title = format!("Claude Code: {}", &summary);
+
+        notification.title(&title).sound(true);
 
         let icon_path = get_claude_icon_temp_path().unwrap_or_default();
 
@@ -61,7 +62,9 @@ fn create_claude_notification(
     {
         let mut notification = Notification::new();
 
-        notification.summary("Claude Code").body(body);
+        let title = format!("Claude Code: {}", &summary);
+
+        notification.summary(&title).body(body);
 
         if let Ok(p) = get_claude_icon_temp_path()
             && let Some(s) = p.to_str()
@@ -146,6 +149,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
             info!(tool = tool_name, "Claude: pre tool use");
 
             create_claude_notification(
+                hook_input.hook_event_name.as_str(),
                 &format!("The agent is trying to use {}", tool_name),
                 config,
             )?
@@ -154,7 +158,11 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
             let tool_name = hook_input.tool_name.as_deref().unwrap_or("a unknown tool");
             info!(tool = tool_name, "Claude: post tool use");
 
-            create_claude_notification(&format!("The agent has used {}", tool_name), config)?
+            create_claude_notification(
+                hook_input.hook_event_name.as_str(),
+                &format!("The agent has used {}", tool_name),
+                config,
+            )?
         }
         HookEventName::Notification => {
             let message = hook_input
@@ -169,7 +177,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 "constructed notification message"
             );
 
-            create_claude_notification(message, config)?
+            create_claude_notification(hook_input.hook_event_name.as_str(), message, config)?
         }
         HookEventName::UserPromptSubmit => {
             let prompt = hook_input.prompt.as_deref().unwrap_or("unknown");
@@ -181,15 +189,27 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
                 "user prompt preview"
             );
 
-            create_claude_notification(&format!("User prompt submitted: {}", prompt), config)?
+            create_claude_notification(
+                hook_input.hook_event_name.as_str(),
+                &format!("User prompt submitted: {}", prompt),
+                config,
+            )?
         }
         HookEventName::Stop => {
             info!("Claude: session stop");
-            create_claude_notification("The agent has stopped responding.", config)?
+            create_claude_notification(
+                hook_input.hook_event_name.as_str(),
+                "The agent has stopped responding.",
+                config,
+            )?
         }
         HookEventName::SubagentStop => {
             info!("Claude: subagent stop");
-            create_claude_notification("A subagent has stopped responding.", config)?
+            create_claude_notification(
+                hook_input.hook_event_name.as_str(),
+                "A subagent has stopped responding.",
+                config,
+            )?
         }
         HookEventName::PreCompact => {
             let trigger = hook_input
@@ -201,6 +221,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
             debug!(trigger = trigger, "compaction trigger");
 
             create_claude_notification(
+                hook_input.hook_event_name.as_str(),
                 &format!(
                     "The agent is about to compact the conversation. Trigger: {}",
                     trigger
@@ -210,7 +231,11 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
         }
         HookEventName::SessionStart => {
             info!("Claude: session start");
-            create_claude_notification("The agent has started a new session.", config)?
+            create_claude_notification(
+                hook_input.hook_event_name.as_str(),
+                "The agent has started a new session.",
+                config,
+            )?
         }
         HookEventName::SessionEnd => {
             let reason = hook_input
@@ -229,6 +254,7 @@ pub fn send_notification(hook_input: &HookInput, config: &Config) -> Result<(), 
             debug!(reason = reason, "session end reason");
 
             create_claude_notification(
+                hook_input.hook_event_name.as_str(),
                 &format!("The agent has ended the session because {}", reason),
                 config,
             )?

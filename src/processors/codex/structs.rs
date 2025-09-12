@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -6,6 +8,25 @@ pub enum NotificationType {
     AgentTurnComplete,
     #[serde(other)]
     Unknown,
+}
+
+impl fmt::Display for NotificationType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            NotificationType::AgentTurnComplete => "AgentTurnComplete",
+            NotificationType::Unknown => "Unknown",
+        };
+        write!(f, "{}", name)
+    }
+}
+
+impl NotificationType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            NotificationType::AgentTurnComplete => "AgentTurnComplete",
+            NotificationType::Unknown => "Unknown",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
