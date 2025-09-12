@@ -61,8 +61,6 @@ Desktop notifications for your coding agents.
 
 Note: This is early-stage software. Expect rough edges.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ## Features
 
 - Agent hook integration (Claude Code and Codex; more agents planned)
@@ -168,8 +166,6 @@ Notes:
 - `Notification`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `PreCompact`, `SessionStart`, `SessionEnd` don’t require a `matcher`.
 - `PreToolUse` and `PostToolUse` support `matcher` (exact, regex, `*`, or empty string).
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ### Manual Configuration (Codex)
 
 In Codex’s `config.toml`, set `notify` to execute this tool:
@@ -237,8 +233,6 @@ echo '{
 - Override with `--config <FILE>`
 - Reset with `--reset-config`
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ### Format
 
 ```json
@@ -249,8 +243,6 @@ echo '{
 }
 ```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ### Options
 
 - `version`: Internal schema version. Leave as `1`.
@@ -260,8 +252,6 @@ echo '{
 - `codex.sound` (macOS only): When `true`, `anot` plays a notification sound for Codex notifications.
 
 Defaults are `claude.pretend = true`, `codex.pretend = false`.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Platform Notes
 
