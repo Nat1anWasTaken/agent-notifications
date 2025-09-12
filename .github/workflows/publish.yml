@@ -10,14 +10,102 @@ env:
 
 jobs:
   publish:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Sync Cargo version with latest tag
+        id: sync_version
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force
+
+          orig_ref_type="${GITHUB_REF_TYPE:-}"
+          orig_ref_name="${GITHUB_REF_NAME:-}"
+          orig_sha="${GITHUB_SHA:-}"
+
+          # Determine latest tag (prefer the event tag on release)
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" && -n "${GITHUB_REF_NAME:-}" ]]; then
+            latest_tag="${GITHUB_REF_NAME}"
+          else
+            latest_tag="$(git describe --tags --abbrev=0)"
+          fi
+
+          if [[ -z "${latest_tag}" ]]; then
+            echo "No tags found; skipping version sync."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Strip leading 'v' if present
+          latest_version="${latest_tag#v}"
+
+          # Extract current version and crate name from [package]
+          current_version=$(awk -F'"' '/^\[package\]/{p=1;next} p && $1 ~ /^version *=/ {print $2; exit}' Cargo.toml)
+          crate_name=$(awk -F'"' '/^\[package\]/{p=1;next} p && $1 ~ /^name *=/ {print $2; exit}' Cargo.toml)
+
+          echo "Latest tag: ${latest_tag} (version ${latest_version})"
+          echo "Current Cargo.toml version: ${current_version}"
+          echo "Crate name: ${crate_name}"
+
+          if [[ "${latest_version}" == "${current_version}" ]]; then
+            echo "Versions match; no changes needed."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Version mismatch detected; updating to ${latest_version}..."
+
+          # If running on a tag ref, switch to the default branch before editing
+          if [[ "${orig_ref_type}" == "tag" ]]; then
+            echo "Currently on a tag; checking out default branch ${DEFAULT_BRANCH} for commit."
+            git checkout "${DEFAULT_BRANCH}"
+            git pull --ff-only origin "${DEFAULT_BRANCH}" || true
+          fi
+
+          # Update Cargo.toml version within the [package] section only
+          awk -v newver="${latest_version}" '
+            BEGIN{p=0}
+            /^\[package\]/{p=1; print; next}
+            p==1 && /^version *=/{print "version = \"" newver "\""; p=2; next}
+            {print}
+          ' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
+
+          # Sync Cargo.lock with the new version
+          if ! cargo update -p "${crate_name}" --precise "${latest_version}"; then
+            echo "cargo update -p failed; regenerating lockfile as fallback."
+            cargo generate-lockfile || cargo update
+          fi
+
+          # Commit and push the changes
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore(Cargo.toml, Cargo.lock): bump version to ${latest_version}" || {
+            echo "Nothing to commit (possibly no changes)."; echo "bumped=false" >> "$GITHUB_OUTPUT"; exit 0;
+          }
+          current_branch="$(git branch --show-current)"
+          git push origin "${current_branch}"
+
+          # If we started on a tag, return to the original detached commit for the rest of the job
+          if [[ "${orig_ref_type}" == "tag" && -n "${orig_sha}" ]]; then
+            echo "Restoring original detached HEAD at ${orig_sha}"
+            git checkout --detach "${orig_sha}"
+          fi
+
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
