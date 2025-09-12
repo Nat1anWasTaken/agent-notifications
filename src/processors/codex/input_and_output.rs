@@ -1,6 +1,4 @@
 use anyhow::Error;
-#[cfg(target_os = "macos")]
-use mac_notification_sys::{Notification, get_bundle_identifier, set_application};
 #[cfg(not(target_os = "macos"))]
 use notify_rust::Notification;
 use tracing::{debug, error, info, instrument, warn};
