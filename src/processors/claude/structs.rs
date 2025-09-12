@@ -35,6 +35,22 @@ impl fmt::Display for HookEventName {
     }
 }
 
+impl HookEventName {
+    pub fn as_str(&self) -> &str {
+        match self {
+            HookEventName::Notification => "Notification",
+            HookEventName::PreToolUse => "PreToolUse",
+            HookEventName::PostToolUse => "PostToolUse",
+            HookEventName::UserPromptSubmit => "UserPromptSubmit",
+            HookEventName::Stop => "Stop",
+            HookEventName::SubagentStop => "SubagentStop",
+            HookEventName::PreCompact => "PreCompact",
+            HookEventName::SessionStart => "SessionStart",
+            HookEventName::SessionEnd => "SessionEnd",
+        }
+    }
+}
+
 /// Trigger source for PreCompact
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

@@ -8,6 +8,25 @@ pub enum NotificationType {
     Unknown,
 }
 
+impl fmt::Display for NotificationType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            NotificationType::AgentTurnComplete => "AgentTurnComplete",
+            NotificationType::Unknown => "Unknown",
+        };
+        write!(f, "{}", name)
+    }
+}
+
+impl NotificationType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            NotificationType::AgentTurnComplete => "AgentTurnComplete",
+            NotificationType::Unknown => "Unknown",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct CodexNotificationInput {
