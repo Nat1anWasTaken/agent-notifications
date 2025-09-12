@@ -61,11 +61,15 @@ Desktop notifications for your coding agents.
 
 Note: This is early-stage software. Expect rough edges.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Features
 
 - Agent hook integration (Claude Code and Codex; more agents planned)
 - Notifications for multiple events (pre/post tool use, notifications, prompts, start/stop, etc.)
 - macOS and Linux desktop support (via `notify-rust`)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Install
 
@@ -80,6 +84,8 @@ cargo install agent-notifications
 ```bash
 cargo install --path .
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Quick Start (Claude Code)
 
@@ -97,6 +103,8 @@ cargo install --path .
 ### What the initializer does
 
 It edits your chosen Claude Code settings file and adds hook entries that execute the `anot claude` command on selected events. Re-running the initializer updates/removes prior `anot` hooks and applies your latest selection.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Quick Start (Codex)
 
@@ -118,6 +126,8 @@ It sets the `notify` command in Codex’s `config.toml` to point to this tool, e
 ```toml
 notify = ["/absolute/path/to/anot", "codex"]
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Manual Configuration (optional)
 
@@ -158,6 +168,8 @@ Notes:
 - `Notification`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `PreCompact`, `SessionStart`, `SessionEnd` don’t require a `matcher`.
 - `PreToolUse` and `PostToolUse` support `matcher` (exact, regex, `*`, or empty string).
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ### Manual Configuration (Codex)
 
 In Codex’s `config.toml`, set `notify` to execute this tool:
@@ -165,6 +177,8 @@ In Codex’s `config.toml`, set `notify` to execute this tool:
 ```toml
 notify = ["/absolute/path/to/anot", "codex"]
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## CLI
 
@@ -181,6 +195,8 @@ notify = ["/absolute/path/to/anot", "codex"]
   - `anot codex [<notification-json>]`: Processes a Codex notification payload. Used by the hooks you configure.
 
 View help: `anot --help`, `anot init --help`
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Test Locally
 
@@ -211,6 +227,8 @@ echo '{
 }' | anot codex
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Configuration File
 
 `anot` keeps its own config at:
@@ -218,6 +236,8 @@ echo '{
 - Default: `~/.config/agent_notifications/a-notifications.json` (created on first run)
 - Override with `--config <FILE>`
 - Reset with `--reset-config`
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Format
 
@@ -229,6 +249,8 @@ echo '{
 }
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ### Options
 
 - `version`: Internal schema version. Leave as `1`.
@@ -239,11 +261,15 @@ echo '{
 
 Defaults are `claude.pretend = true`, `codex.pretend = false`.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ### Platform Notes
 
 - macOS: Pretend mode controls whether the notification uses the target app’s bundle (left-side icon) vs. Terminal + a content image. If the target app isn’t installed or pretend is disabled, you’ll see the Terminal app on the left and the agent icon as the content image.
 - Linux/BSD: Pretend is ignored; the agent icon is shown via the notification daemon.
 - Windows: Not currently implemented.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Uninstall / Remove Hooks
 
@@ -251,6 +277,8 @@ Defaults are `claude.pretend = true`, `codex.pretend = false`.
 - Or manually delete the relevant entries in your Claude Code settings.
 
 For Codex, run `anot init codex` and choose “Remove the notify configuration” to clear the `notify` entry, or edit your `config.toml` and remove the `notify` line.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Notification Icons
 
@@ -260,9 +288,13 @@ Icon behavior differs by platform:
 - **Unix (Linux/BSD)**: Icons are supported out of the box. The agent icon is displayed without requiring an app bundle, assuming a desktop notification daemon is running.
 - **Windows**: Icon support is not implemented yet.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Screenshot
 
 ![macOS Notification](assets/readme/macos-notification.png)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Troubleshooting
 
@@ -271,6 +303,10 @@ Icon behavior differs by platform:
 - Nothing happens: re-run `anot init claude` and confirm hooks are added to the expected settings file.
 - Paths: the hook command must be an absolute path to `anot`.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
