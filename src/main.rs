@@ -69,6 +69,17 @@ fn main() -> Result<(), Error> {
 
     let config_path = get_config_path().expect("Failed to determine config path");
 
+    if let Some(Commands::Reset) = cli.command {
+        match reset_configuration(config_path.as_path()) {
+            Ok(_) => println!(
+                "Configuration reset to default at {}",
+                config_path.display()
+            ),
+            Err(e) => eprintln!("Failed to reset configuration: {}", e),
+        };
+        return Ok(());
+    }
+
     let config =
         initialize_configuration(cli.config.clone().unwrap_or(config_path.clone()).as_path())?;
 
@@ -105,16 +116,11 @@ fn main() -> Result<(), Error> {
                 }
             }
         },
-        Some(Commands::Reset) => {
-            match reset_configuration(config_path.as_path()) {
-                Ok(_) => println!(
-                    "Configuration reset to default at {}",
-                    config_path.display()
-                ),
-                Err(e) => error!(error = %e, "failed to reset configuration"),
-            };
-        }
         None => {
+            let mut cmd = Cli::command();
+            cmd.print_help().ok();
+        }
+        _ => {
             let mut cmd = Cli::command();
             cmd.print_help().ok();
         }
