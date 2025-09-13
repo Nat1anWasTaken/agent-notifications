@@ -2,6 +2,9 @@ use std::path::PathBuf;
 
 use anyhow::Error;
 use clap::{CommandFactory, Parser, Subcommand, command};
+use std::sync::OnceLock;
+use tracing::{debug, error};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use crate::{
     configuration::{get_config_path, initialize_configuration, reset_configuration},
@@ -60,11 +63,9 @@ enum InitCommands {
 }
 
 fn main() -> Result<(), Error> {
-    unsafe {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
-    }
-
     let cli = Cli::parse();
+
+    init_tracing(cli.debug);
 
     let config_path = get_config_path().expect("Failed to determine config path");
 
@@ -82,24 +83,22 @@ fn main() -> Result<(), Error> {
     let config =
         initialize_configuration(cli.config.clone().unwrap_or(config_path.clone()).as_path())?;
 
-    // match cli.debug {
-    //     0 => println!("Debug mode is off"),
-    //     1 => println!("Debug mode is kind of on"),
-    //     2 => println!("Debug mode is on"),
-    //     _ => println!("Don't be crazy"),
-    // }
-
     match &cli.command {
         Some(Commands::Claude) => {
+            debug!("processing Claude input from stdin");
             let input = utils::catch_stdin();
-            process_claude_input(input, &config).ok();
+            if let Err(e) = process_claude_input(input, &config) {
+                error!(error = %e, "failed to process Claude input");
+            }
         }
         Some(Commands::Codex { notification }) => {
             let input = match notification {
                 Some(s) => s.clone(),
                 None => utils::catch_stdin(),
             };
-            process_codex_input(input, &config).ok();
+            if let Err(e) = process_codex_input(input, &config) {
+                error!(error = %e, "failed to process Codex input");
+            }
         }
         Some(Commands::Init { command }) => match command {
             Some(InitCommands::Claude { claude_config_path }) => {
@@ -128,4 +127,33 @@ fn main() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+static LOG_GUARD: OnceLock<tracing_appender::non_blocking::WorkerGuard> = OnceLock::new();
+
+fn init_tracing(verbosity: u8) {
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| match verbosity {
+        0 => EnvFilter::new("warn"),
+        1 => EnvFilter::new("info"),
+        2 => EnvFilter::new("debug"),
+        _ => EnvFilter::new("trace"),
+    });
+
+    let log_dir = crate::configuration::get_logs_dir();
+
+    let _ = std::fs::create_dir_all(&log_dir);
+
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "anot.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    let _ = LOG_GUARD.set(guard);
+
+    let fmt_layer = fmt::layer()
+        .with_ansi(false)
+        .with_writer(non_blocking)
+        .with_target(false);
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt_layer)
+        .init();
 }

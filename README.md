@@ -67,6 +67,8 @@ Note: This is early-stage software. Expect rough edges.
 - Notifications for multiple events (pre/post tool use, notifications, prompts, start/stop, etc.)
 - macOS and Linux desktop support (via `notify-rust`)
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Install
 
 - With Cargo
@@ -80,6 +82,8 @@ cargo install agent-notifications
 ```bash
 cargo install --path .
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Quick Start (Claude Code)
 
@@ -97,6 +101,8 @@ cargo install --path .
 ### What the initializer does
 
 It edits your chosen Claude Code settings file and adds hook entries that execute the `anot claude` command on selected events. Re-running the initializer updates/removes prior `anot` hooks and applies your latest selection.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Quick Start (Codex)
 
@@ -118,6 +124,8 @@ It sets the `notify` command in Codex’s `config.toml` to point to this tool, e
 ```toml
 notify = ["/absolute/path/to/anot", "codex"]
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Manual Configuration (optional)
 
@@ -166,6 +174,8 @@ In Codex’s `config.toml`, set `notify` to execute this tool:
 notify = ["/absolute/path/to/anot", "codex"]
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## CLI
 
 - `anot` global options:
@@ -181,6 +191,8 @@ notify = ["/absolute/path/to/anot", "codex"]
   - `anot codex [<notification-json>]`: Processes a Codex notification payload. Used by the hooks you configure.
 
 View help: `anot --help`, `anot init --help`
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Test Locally
 
@@ -211,6 +223,8 @@ echo '{
 }' | anot codex
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Configuration File
 
 `anot` keeps its own config at:
@@ -224,8 +238,8 @@ echo '{
 ```json
 {
   "version": 1,
-  "claude": { "pretend": true },
-  "codex": { "pretend": false }
+  "claude": { "pretend": true, "sound": true },
+  "codex": { "pretend": false, "sound": true }
 }
 ```
 
@@ -233,7 +247,9 @@ echo '{
 
 - `version`: Internal schema version. Leave as `1`.
 - `claude.pretend` (macOS only): When `true`, `anot` pretends to be the Claude app for notifications so the left-side app icon shows as Claude. When `false`, the notification uses the Terminal app identity and shows the Claude icon as the content image on the right.
+- `claude.sound` (macOS only): When `true`, `anot` plays a notification sound for Claude notifications.
 - `codex.pretend` (macOS only): When `true`, `anot` attempts to pretend to be the ChatGPT app for notifications. The ChatGPT app appears to enforce stricter checks, so pretending is unreliable. It’s recommended to keep this `false` so the Codex/ChatGPT icon is shown as the content image instead.
+- `codex.sound` (macOS only): When `true`, `anot` plays a notification sound for Codex notifications.
 
 Defaults are `claude.pretend = true`, `codex.pretend = false`.
 
@@ -243,12 +259,16 @@ Defaults are `claude.pretend = true`, `codex.pretend = false`.
 - Linux/BSD: Pretend is ignored; the agent icon is shown via the notification daemon.
 - Windows: Not currently implemented.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Uninstall / Remove Hooks
 
 - Run `anot init claude` and deselect all events to remove existing `anot` hooks from the chosen settings file.
 - Or manually delete the relevant entries in your Claude Code settings.
 
 For Codex, run `anot init codex` and choose “Remove the notify configuration” to clear the `notify` entry, or edit your `config.toml` and remove the `notify` line.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Notification Icons
 
@@ -258,9 +278,13 @@ Icon behavior differs by platform:
 - **Unix (Linux/BSD)**: Icons are supported out of the box. The agent icon is displayed without requiring an app bundle, assuming a desktop notification daemon is running.
 - **Windows**: Icon support is not implemented yet.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Screenshot
 
 ![macOS Notification](assets/readme/macos-notification.png)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Troubleshooting
 
@@ -269,6 +293,10 @@ Icon behavior differs by platform:
 - Nothing happens: re-run `anot init claude` and confirm hooks are added to the expected settings file.
 - Paths: the hook command must be an absolute path to `anot`.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
