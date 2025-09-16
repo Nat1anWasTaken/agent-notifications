@@ -21,7 +21,7 @@ tracing-appender = "0.2"
 tracing-subscriber = {version = "0.3", features = ["env-filter"]}
 [target.'cfg(target_os = "macos")'.dependencies]
 mac-notification-sys = "0.6.6"
-[target.'cfg(target_os = "linux")'.dependencies]
+[target.'cfg(not(target_os = "macos"))'.dependencies]
 notify-rust = "4.11.7"
 
 [[bin]]
