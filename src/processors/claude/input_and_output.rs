@@ -32,7 +32,7 @@ fn create_claude_notification(
 
         let title = format!("Claude Code: {}", &summary);
 
-        notification.title(&title).message(&body).sound(true);
+        notification.title(&title).message(body).sound(true);
 
         let icon_path = get_claude_icon_temp_path().unwrap_or_default();
 
