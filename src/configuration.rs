@@ -37,10 +37,28 @@ impl Default for Codex {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Opencode {
+    pub pretend: bool,
+    pub sound: bool,
+}
+
+impl Default for Opencode {
+    fn default() -> Self {
+        Opencode {
+            pretend: false,
+            sound: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub version: u32,
     pub claude: Claude,
     pub codex: Codex,
+
+    #[serde(default)]
+    pub opencode: Opencode,
 }
 
 impl Default for Config {
@@ -49,6 +67,7 @@ impl Default for Config {
             version: 1,
             claude: Claude::default(),
             codex: Codex::default(),
+            opencode: Opencode::default(),
         }
     }
 }
