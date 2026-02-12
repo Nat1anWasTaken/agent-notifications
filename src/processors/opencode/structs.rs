@@ -18,6 +18,10 @@ pub enum OpencodeSupportedEvent {
         request_id: String,
         reply: String,
     },
+    QuestionAsked {
+        session_id: Option<String>,
+        question: String,
+    },
     SessionError {
         session_id: Option<String>,
         summary: String,
@@ -111,6 +115,39 @@ fn resolve_error_value<'a>(event: &'a Value, root: &'a Value) -> Option<&'a Valu
         .pointer("/properties/error")
         .or_else(|| event.get("error"))
         .or_else(|| root.get("error"))
+}
+
+fn compact_value_string(value: &Value, max_chars: usize) -> String {
+    let s = if let Some(s) = value.as_str() {
+        s.to_string()
+    } else {
+        value.to_string()
+    };
+    truncate_chars(s.trim(), max_chars)
+}
+
+fn resolve_question_text(event: &Value, root: &Value) -> Option<String> {
+    let candidates: Vec<Option<&Value>> = vec![
+        event.pointer("/properties/question"),
+        event.pointer("/properties/text"),
+        event.pointer("/properties/message"),
+        event.pointer("/properties/prompt"),
+        event.get("question"),
+        event.get("text"),
+        event.get("message"),
+        root.get("question"),
+        root.get("text"),
+        root.get("message"),
+    ];
+
+    for v in candidates.into_iter().flatten() {
+        let s = compact_value_string(v, 400);
+        if !s.is_empty() {
+            return Some(s);
+        }
+    }
+
+    None
 }
 
 fn truncate_chars(s: &str, max_chars: usize) -> String {
@@ -245,6 +282,15 @@ pub fn parse_supported_event(input: &str) -> Result<Option<OpencodeSupportedEven
                 request_id: reply.request_id,
                 reply: reply.reply,
             }))
+        }
+        "question.asked" => {
+            let session_id = resolve_session_id(event)
+                .or_else(|| resolve_session_id(&value))
+                .map(|s| s.to_string());
+            let question = resolve_question_text(event, &value)
+                .unwrap_or_else(|| "Question asked".to_string());
+
+            Ok(Some(OpencodeSupportedEvent::QuestionAsked { session_id, question }))
         }
         "session.error" => {
             let session_id = resolve_session_id(event)
@@ -437,6 +483,29 @@ mod tests {
             }
             _ => panic!("expected PermissionReplied"),
         }
+    }
+
+    #[test]
+    fn parses_question_asked_with_question_text() {
+        let evt = parse_supported_event(
+            r#"{
+              "type":"question.asked",
+              "properties":{
+                "sessionID":"abc123",
+                "question":"Proceed?"
+              }
+            }"#,
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(
+            evt,
+            OpencodeSupportedEvent::QuestionAsked {
+                session_id: Some("abc123".to_string()),
+                question: "Proceed?".to_string(),
+            }
+        );
     }
 
     #[test]

@@ -175,6 +175,14 @@ fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
             push_line(&mut lines, "reply", reply);
             ("OpenCode".to_string(), lines.join("\n"))
         }
+        OpencodeSupportedEvent::QuestionAsked { session_id, question } => {
+            let mut lines = vec!["type: question.asked".to_string()];
+            if let Some(id) = session_id.as_deref() {
+                push_line(&mut lines, "sessionID", id);
+            }
+            push_line(&mut lines, "question", question);
+            ("OpenCode".to_string(), lines.join("\n"))
+        }
         OpencodeSupportedEvent::SessionError {
             session_id,
             summary,
@@ -274,6 +282,13 @@ pub fn process_opencode_input(input: String, config: &Config) -> Result<(), Erro
                 request_id = request_id,
                 reply = reply,
                 "OpenCode: permission replied"
+            );
+        }
+        OpencodeSupportedEvent::QuestionAsked { session_id, question } => {
+            info!(
+                session_id = ?session_id,
+                question = question,
+                "OpenCode: question asked"
             );
         }
         OpencodeSupportedEvent::SessionError {

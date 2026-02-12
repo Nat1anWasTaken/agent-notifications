@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Error;
-use inquire::{Confirm, InquireError, Select};
+use inquire::{Confirm, InquireError, MultiSelect, Select};
 use tracing::{debug, info, instrument};
 
 fn handle_inquire_error(err: InquireError, context: &str) -> Error {
@@ -19,6 +19,72 @@ enum OpencodePluginPathSelection {
     GlobalPlugins(bool),
     ProjectPlugins(bool),
     CustomPath,
+}
+
+#[derive(Clone, Copy)]
+struct OpencodeEventSelection {
+    event_type: &'static str,
+    description: &'static str,
+}
+
+impl fmt::Display for OpencodeEventSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} — {}", self.event_type, self.description)
+    }
+}
+
+const OPENCODE_EVENT_SELECTIONS: [OpencodeEventSelection; 6] = [
+    OpencodeEventSelection {
+        event_type: "question.asked",
+        description: "Agent asked you a question",
+    },
+    OpencodeEventSelection {
+        event_type: "session.idle",
+        description: "Session finished generating / became idle",
+    },
+    OpencodeEventSelection {
+        event_type: "session.error",
+        description: "Session errored",
+    },
+    OpencodeEventSelection {
+        event_type: "permission.asked",
+        description: "Permission prompt shown",
+    },
+    OpencodeEventSelection {
+        event_type: "permission.replied",
+        description: "Permission prompt answered",
+    },
+    OpencodeEventSelection {
+        event_type: "permission.updated",
+        description: "Permission state updated",
+    },
+];
+
+fn choose_events() -> Result<Vec<&'static str>, Error> {
+    let choices = OPENCODE_EVENT_SELECTIONS.to_vec();
+    let default_event_types = ["question.asked", "session.idle"];
+    let default_indices: Vec<usize> = choices
+        .iter()
+        .enumerate()
+        .filter_map(|(i, opt)| {
+            if default_event_types.contains(&opt.event_type) {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let selected = MultiSelect::new(
+        "Which OpenCode events should trigger notifications?",
+        choices,
+    )
+    .with_help_message("Use space to toggle; enter to confirm")
+    .with_default(&default_indices)
+    .prompt()
+    .map_err(|err| handle_inquire_error(err, "Failed to prompt for event selection"))?;
+
+    Ok(selected.into_iter().map(|v| v.event_type).collect())
 }
 
 #[derive(Clone, Copy)]
@@ -108,7 +174,9 @@ pub fn initialize_opencode_configuration(
         }
     }
 
-    let plugin_contents = plugin_file_contents()?;
+    let supported_event_types = choose_events()?;
+
+    let plugin_contents = plugin_file_contents(&supported_event_types)?;
     std::fs::write(&expanded_path, plugin_contents)
         .map_err(|e| Error::msg(format!("Failed to write OpenCode plugin file: {e}")))?;
 
@@ -189,13 +257,20 @@ fn ensure_parent_dir_exists(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-fn plugin_file_contents() -> Result<String, Error> {
+fn plugin_file_contents(supported_event_types: &[&str]) -> Result<String, Error> {
     let current_exe =
         std::env::current_exe().map_err(|_| Error::msg("Failed to get current executable path"))?;
     let exe_str = current_exe.to_string_lossy().to_string();
 
+    let supported_list = supported_event_types
+        .iter()
+        .map(|s| format!("\"{s}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+
     Ok(format!(
-        "export const AgentNotificationsPlugin = async ({{ $, project, client, directory, worktree }}) => {{\n  return {{\n    event: async ({{ event }}) => {{\n      if (!event || !event.type) return\n      const supported = new Set([\"session.idle\", \"session.error\", \"permission.updated\", \"permission.asked\", \"permission.replied\"])\n      if (!supported.has(event.type)) return\n      try {{\n        await $`{exe} opencode ${{JSON.stringify(event)}}`\n      }} catch (e) {{\n        // Swallow to avoid breaking OpenCode on notification failures\n      }}\n    }},\n  }}\n}}\n",
+        "export const AgentNotificationsPlugin = async ({{ $, project, client, directory, worktree }}) => {{\n  return {{\n    event: async ({{ event }}) => {{\n      if (!event || !event.type) return\n      const supported = new Set([{supported}])\n      if (!supported.has(event.type)) return\n      try {{\n        await $`{exe} opencode ${{JSON.stringify(event)}}`\n      }} catch (e) {{\n        // Swallow to avoid breaking OpenCode on notification failures\n      }}\n    }},\n  }}\n}}\n",
         exe = exe_str.replace('`', "\\`")
+        ,supported = supported_list
     ))
 }
