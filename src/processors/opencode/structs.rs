@@ -20,7 +20,9 @@ pub enum OpencodeSupportedEvent {
     },
     QuestionAsked {
         session_id: Option<String>,
-        question: String,
+        request_id: Option<String>,
+        questions: Vec<QuestionInfo>,
+        tool: Option<PermissionTool>,
     },
     SessionError {
         session_id: Option<String>,
@@ -41,6 +43,45 @@ pub struct PermissionTool {
 
     #[serde(rename = "callID")]
     pub call_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct QuestionOption {
+    pub label: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct QuestionInfo {
+    #[serde(default)]
+    pub question: String,
+
+    #[serde(default)]
+    pub header: String,
+
+    #[serde(default)]
+    pub options: Vec<QuestionOption>,
+
+    #[serde(default)]
+    pub multiple: Option<bool>,
+
+    #[serde(default)]
+    pub custom: Option<bool>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct QuestionRequest {
+    #[serde(default)]
+    pub id: Option<String>,
+
+    #[serde(rename = "sessionID", default)]
+    pub session_id: Option<String>,
+
+    #[serde(default)]
+    pub questions: Vec<QuestionInfo>,
+
+    #[serde(default)]
+    pub tool: Option<PermissionTool>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -287,10 +328,32 @@ pub fn parse_supported_event(input: &str) -> Result<Option<OpencodeSupportedEven
             let session_id = resolve_session_id(event)
                 .or_else(|| resolve_session_id(&value))
                 .map(|s| s.to_string());
-            let question = resolve_question_text(event, &value)
-                .unwrap_or_else(|| "Question asked".to_string());
+            let properties = event
+                .get("properties")
+                .cloned()
+                .unwrap_or_else(|| strip_event_type(event.clone()));
+            let mut request = serde_json::from_value::<QuestionRequest>(properties).map_err(
+                |e| Error::msg(format!("Invalid question.asked properties: {e}")),
+            )?;
 
-            Ok(Some(OpencodeSupportedEvent::QuestionAsked { session_id, question }))
+            if request.questions.is_empty() {
+                if let Some(text) = resolve_question_text(event, &value) {
+                    request.questions.push(QuestionInfo {
+                        question: text,
+                        header: String::new(),
+                        options: Vec::new(),
+                        multiple: None,
+                        custom: None,
+                    });
+                }
+            }
+
+            Ok(Some(OpencodeSupportedEvent::QuestionAsked {
+                session_id: request.session_id.or(session_id),
+                request_id: request.id,
+                questions: request.questions,
+                tool: request.tool,
+            }))
         }
         "session.error" => {
             let session_id = resolve_session_id(event)
@@ -491,8 +554,16 @@ mod tests {
             r#"{
               "type":"question.asked",
               "properties":{
+                "id":"q1",
                 "sessionID":"abc123",
-                "question":"Proceed?"
+                "questions":[{
+                  "question":"Proceed?",
+                  "header":"Confirm",
+                  "options":[
+                    {"label":"Yes","description":"Continue"},
+                    {"label":"No","description":"Stop"}
+                  ]
+                }]
               }
             }"#,
         )
@@ -503,7 +574,24 @@ mod tests {
             evt,
             OpencodeSupportedEvent::QuestionAsked {
                 session_id: Some("abc123".to_string()),
-                question: "Proceed?".to_string(),
+                request_id: Some("q1".to_string()),
+                questions: vec![QuestionInfo {
+                    question: "Proceed?".to_string(),
+                    header: "Confirm".to_string(),
+                    options: vec![
+                        QuestionOption {
+                            label: "Yes".to_string(),
+                            description: "Continue".to_string(),
+                        },
+                        QuestionOption {
+                            label: "No".to_string(),
+                            description: "Stop".to_string(),
+                        },
+                    ],
+                    multiple: None,
+                    custom: None,
+                }],
+                tool: None,
             }
         );
     }

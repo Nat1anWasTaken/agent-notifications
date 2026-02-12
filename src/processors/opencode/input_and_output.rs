@@ -73,10 +73,23 @@ fn create_opencode_notification(
 }
 
 fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
-    fn push_line(lines: &mut Vec<String>, key: &str, value: impl AsRef<str>) {
-        let v = value.as_ref();
-        if !v.is_empty() {
-            lines.push(format!("{key}: {v}"));
+    fn format_sentence(value: impl AsRef<str>) -> Option<String> {
+        let trimmed = value.as_ref().trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let last = trimmed.chars().last().unwrap_or('.');
+        let needs_period = !matches!(last, '.' | '!' | '?');
+        Some(if needs_period {
+            format!("{trimmed}.")
+        } else {
+            trimmed.to_string()
+        })
+    }
+
+    fn push_sentence(lines: &mut Vec<String>, value: impl AsRef<str>) {
+        if let Some(sentence) = format_sentence(value) {
+            lines.push(sentence);
         }
     }
 
@@ -100,66 +113,56 @@ fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
 
     match event {
         OpencodeSupportedEvent::SessionIdle { session_id } => {
-            let mut lines = vec!["type: session.idle".to_string()];
-            push_line(&mut lines, "sessionID", session_id);
-            lines.push("message: Generation completed".to_string());
+            let mut lines = Vec::new();
+            push_sentence(&mut lines, format!("Session {session_id} is idle"));
             ("OpenCode".to_string(), lines.join("\n"))
         }
         OpencodeSupportedEvent::Permission {
             event_type,
             permission,
         } => {
-            let mut lines = vec![format!("type: {event_type}")];
-            push_line(&mut lines, "sessionID", &permission.session_id);
-            push_line(&mut lines, "requestID", &permission.id);
-
-            if let Some(title) = permission.title.as_deref() {
-                push_line(&mut lines, "title", title);
-            }
-
+            let mut lines = Vec::new();
+            let verb = match event_type.as_str() {
+                "permission.asked" => "Permission request",
+                "permission.updated" => "Permission update",
+                _ => "Permission event",
+            };
+            let mut first = if permission.id.is_empty() {
+                verb.to_string()
+            } else {
+                format!("{verb} {}", permission.id)
+            };
             if let Some(p) = permission.permission.as_deref() {
-                push_line(&mut lines, "permission", p);
+                first = format!("{first} to {p}");
             }
-            if let Some(p) = permission.permission_type.as_deref() {
-                push_line(&mut lines, "permissionType", p);
-            }
+            first = format!("{first} for session {}", permission.session_id);
+            push_sentence(&mut lines, first);
 
             if !permission.patterns.is_empty() {
-                push_line(&mut lines, "patterns", &permission.patterns.join(", "));
+                push_sentence(
+                    &mut lines,
+                    format!("Applies to {}", permission.patterns.join(", ")),
+                );
             }
             if !permission.always.is_empty() {
-                push_line(&mut lines, "always", &permission.always.join(", "));
+                push_sentence(
+                    &mut lines,
+                    format!("Always allow for {}", permission.always.join(", ")),
+                );
             }
 
             if let Some(tool) = permission.tool.as_ref() {
-                push_line(&mut lines, "tool.messageID", &tool.message_id);
-                push_line(&mut lines, "tool.callID", &tool.call_id);
-            }
-            if let Some(message_id) = permission.message_id.as_deref() {
-                push_line(&mut lines, "messageID", message_id);
-            }
-            if let Some(call_id) = permission.call_id.as_deref() {
-                push_line(&mut lines, "callID", call_id);
-            }
-
-            if let Some(pattern) = permission.pattern.as_ref() {
-                push_line(&mut lines, "pattern", display_json_value(pattern, 400));
-            }
-            if let Some(time) = permission.time.as_ref() {
-                push_line(&mut lines, "time.created", time.created.to_string());
+                push_sentence(&mut lines, format!("From tool call {}", tool.call_id));
+                push_sentence(
+                    &mut lines,
+                    format!("Tool message {}", tool.message_id),
+                );
             }
 
             if !permission.metadata.is_empty() {
-                let mut pairs: Vec<_> = permission.metadata.iter().collect();
-                pairs.sort_by(|a, b| a.0.cmp(b.0));
-
-                for (k, v) in pairs {
-                    push_line(
-                        &mut lines,
-                        &format!("metadata.{k}"),
-                        display_json_value(v, 200),
-                    );
-                }
+                let mut keys: Vec<_> = permission.metadata.keys().cloned().collect();
+                keys.sort();
+                push_sentence(&mut lines, format!("Metadata keys: {}", keys.join(", ")));
             }
 
             ("OpenCode".to_string(), lines.join("\n"))
@@ -169,18 +172,68 @@ fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
             request_id,
             reply,
         } => {
-            let mut lines = vec!["type: permission.replied".to_string()];
-            push_line(&mut lines, "sessionID", session_id);
-            push_line(&mut lines, "requestID", request_id);
-            push_line(&mut lines, "reply", reply);
+            let mut lines = Vec::new();
+            let reply_text = match reply.as_str() {
+                "once" => "allowed once",
+                "always" => "always allowed",
+                "reject" => "rejected",
+                _ => reply,
+            };
+            push_sentence(
+                &mut lines,
+                format!("Permission request {request_id} was {reply_text} for session {session_id}"),
+            );
             ("OpenCode".to_string(), lines.join("\n"))
         }
-        OpencodeSupportedEvent::QuestionAsked { session_id, question } => {
-            let mut lines = vec!["type: question.asked".to_string()];
+        OpencodeSupportedEvent::QuestionAsked {
+            session_id,
+            request_id,
+            questions,
+            tool,
+        } => {
+            let mut lines = Vec::new();
             if let Some(id) = session_id.as_deref() {
-                push_line(&mut lines, "sessionID", id);
+                push_sentence(&mut lines, format!("Question asked in session {id}"));
+            } else {
+                push_sentence(&mut lines, "Question asked");
             }
-            push_line(&mut lines, "question", question);
+            if let Some(id) = request_id.as_deref() {
+                push_sentence(&mut lines, format!("Request {id}"));
+            }
+
+            if let Some(first) = questions.first() {
+                if !first.header.is_empty() && !first.question.is_empty() {
+                    push_sentence(
+                        &mut lines,
+                        format!("{}: {}", first.header, first.question),
+                    );
+                } else if !first.question.is_empty() {
+                    push_sentence(&mut lines, format!("Question: {}", first.question));
+                } else if !first.header.is_empty() {
+                    push_sentence(&mut lines, format!("Question {header}", header = first.header));
+                }
+
+                if questions.len() > 1 {
+                    push_sentence(&mut lines, format!("Includes {} questions", questions.len()));
+                }
+
+                if !first.options.is_empty() {
+                    let labels: Vec<_> = first.options.iter().map(|o| o.label.as_str()).collect();
+                    push_sentence(&mut lines, format!("Options: {}", labels.join(", ")));
+                }
+                if first.multiple == Some(true) {
+                    push_sentence(&mut lines, "Multiple selections allowed");
+                }
+                if first.custom == Some(true) {
+                    push_sentence(&mut lines, "Custom answers allowed");
+                }
+            }
+
+            if let Some(tool) = tool.as_ref() {
+                push_sentence(&mut lines, format!("From tool call {}", tool.call_id));
+                push_sentence(&mut lines, format!("Tool message {}", tool.message_id));
+            }
+
             ("OpenCode".to_string(), lines.join("\n"))
         }
         OpencodeSupportedEvent::SessionError {
@@ -188,30 +241,20 @@ fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
             summary,
             error,
         } => {
-            let mut lines = vec!["type: session.error".to_string()];
+            let mut lines = Vec::new();
             if let Some(id) = session_id.as_deref() {
-                push_line(&mut lines, "sessionID", id);
+                push_sentence(&mut lines, format!("Session {id} encountered an error"));
+            } else {
+                push_sentence(&mut lines, "A session error occurred");
             }
-            push_line(&mut lines, "summary", summary);
+            if !summary.is_empty() {
+                push_sentence(&mut lines, format!("Error: {summary}"));
+            }
 
             if let Some(err) = error.as_ref() {
-                if let Some(name) = err
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .or_else(|| err.get("type").and_then(Value::as_str))
-                {
-                    push_line(&mut lines, "error.name", name);
-                }
-                if let Some(msg) = err
-                    .pointer("/data/message")
-                    .and_then(Value::as_str)
-                    .or_else(|| err.get("message").and_then(Value::as_str))
-                {
-                    push_line(&mut lines, "error.message", msg);
-                }
                 if let Some(provider_id) = err.pointer("/data/providerID").and_then(Value::as_str)
                 {
-                    push_line(&mut lines, "error.data.providerID", provider_id);
+                    push_sentence(&mut lines, format!("Provider {provider_id}"));
                 }
 
                 if let Some(status_code) = err
@@ -219,12 +262,17 @@ fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
                     .and_then(Value::as_i64)
                     .or_else(|| err.pointer("/data/statusCode").and_then(Value::as_u64).map(|v| v as i64))
                 {
-                    push_line(&mut lines, "error.data.statusCode", status_code.to_string());
+                    push_sentence(&mut lines, format!("Status code {status_code}"));
                 }
 
                 if let Some(is_retryable) = err.pointer("/data/isRetryable").and_then(Value::as_bool)
                 {
-                    push_line(&mut lines, "error.data.isRetryable", is_retryable.to_string());
+                    let sentence = if is_retryable {
+                        "Retryable"
+                    } else {
+                        "Not retryable"
+                    };
+                    push_sentence(&mut lines, sentence);
                 }
 
                 if let Some(body) = err
@@ -232,10 +280,14 @@ fn map_event_to_message(event: &OpencodeSupportedEvent) -> (String, String) {
                     .and_then(Value::as_str)
                     .or_else(|| err.get("responseBody").and_then(Value::as_str))
                 {
-                    push_line(&mut lines, "error.data.responseBody", display_json_value(&Value::String(body.to_string()), 300));
+                    push_sentence(
+                        &mut lines,
+                        format!(
+                            "Response: {}",
+                            display_json_value(&Value::String(body.to_string()), 300)
+                        ),
+                    );
                 }
-
-                push_line(&mut lines, "error.raw", display_json_value(err, 400));
             }
 
             ("OpenCode".to_string(), lines.join("\n"))
@@ -284,10 +336,18 @@ pub fn process_opencode_input(input: String, config: &Config) -> Result<(), Erro
                 "OpenCode: permission replied"
             );
         }
-        OpencodeSupportedEvent::QuestionAsked { session_id, question } => {
+        OpencodeSupportedEvent::QuestionAsked {
+            session_id,
+            request_id,
+            questions,
+            tool: _,
+        } => {
+            let first_question = questions.first().map(|q| q.question.as_str());
             info!(
                 session_id = ?session_id,
-                question = question,
+                request_id = ?request_id,
+                question_count = questions.len(),
+                first_question = ?first_question,
                 "OpenCode: question asked"
             );
         }
@@ -316,8 +376,8 @@ mod tests {
             error: None,
         });
         assert_eq!(title, "OpenCode");
-        assert!(body.contains("abc123"));
-        assert!(body.contains("boom"));
+        assert!(body.contains("Session abc123"));
+        assert!(body.contains("UnknownError"));
     }
 
     #[test]
@@ -325,7 +385,7 @@ mod tests {
         let (_title, body) = map_event_to_message(&OpencodeSupportedEvent::SessionIdle {
             session_id: "abc123".to_string(),
         });
-        assert!(body.contains("session.idle"));
+        assert!(body.contains("idle"));
         assert!(body.contains("abc123"));
     }
 }

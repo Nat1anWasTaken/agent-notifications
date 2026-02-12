@@ -62,7 +62,12 @@ const OPENCODE_EVENT_SELECTIONS: [OpencodeEventSelection; 6] = [
 
 fn choose_events() -> Result<Vec<&'static str>, Error> {
     let choices = OPENCODE_EVENT_SELECTIONS.to_vec();
-    let default_event_types = ["question.asked", "session.idle"];
+    let default_event_types = [
+        "question.asked",
+        "session.idle",
+        "session.error",
+        "permission.asked",
+    ];
     let default_indices: Vec<usize> = choices
         .iter()
         .enumerate()
