@@ -273,9 +273,12 @@ fn plugin_file_contents(supported_event_types: &[&str]) -> Result<String, Error>
         .collect::<Vec<_>>()
         .join(", ");
 
+    // Convert Windows backslashes to forward slashes for cross-platform compatibility
+    let exe_normalized = exe_str.replace('\\', "/").replace('`', "\\`");
+
     Ok(format!(
         "export const AgentNotificationsPlugin = async ({{ $, project, client, directory, worktree }}) => {{\n  return {{\n    event: async ({{ event }}) => {{\n      if (!event || !event.type) return\n      const supported = new Set([{supported}])\n      if (!supported.has(event.type)) return\n      try {{\n        await $`{exe} opencode ${{JSON.stringify(event)}}`\n      }} catch (e) {{\n        // Swallow to avoid breaking OpenCode on notification failures\n      }}\n    }},\n  }}\n}}\n",
-        exe = exe_str.replace('`', "\\`")
-        ,supported = supported_list
+        exe = exe_normalized,
+        supported = supported_list
     ))
 }
