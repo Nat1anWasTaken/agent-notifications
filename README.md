@@ -39,6 +39,7 @@
   - [What the initializer does](#what-the-initializer-does)
 - [Quick Start (Codex)](#quick-start-codex)
   - [What the initializer does (Codex)](#what-the-initializer-does-codex)
+- [Quick Start (OpenCode)](#quick-start-opencode)
 - [Manual Configuration (optional)](#manual-configuration-optional)
   - [Manual Configuration (Codex)](#manual-configuration-codex)
 - [CLI](#cli)
@@ -63,7 +64,7 @@ Note: This is early-stage software. Expect rough edges.
 
 ## Features
 
-- Agent hook integration (Claude Code and Codex; more agents planned)
+- Agent hook integration (Claude Code, Codex, and OpenCode; more agents planned)
 - Notifications for multiple events (pre/post tool use, notifications, prompts, start/stop, etc.)
 - macOS and Linux desktop support (via `notify-rust`)
 
@@ -124,6 +125,35 @@ It sets the `notify` command in Codex’s `config.toml` to point to this tool, e
 ```toml
 notify = ["/absolute/path/to/anot", "codex"]
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Quick Start (OpenCode)
+
+OpenCode can invoke `anot opencode` by piping an event JSON payload to stdin.
+
+At minimum, `session.idle` requires a `sessionID`:
+
+```bash
+echo '{
+  "sessionID": "abc123",
+  "type": "session.idle"
+}' | anot opencode
+```
+
+If required fields are missing, `anot opencode` exits non-zero:
+
+```bash
+echo '{
+  "type": "session.idle"
+}' | anot opencode
+```
+
+Notes:
+
+- `anot opencode` accepts both common event shapes:
+  - flattened: `{ "type": "session.idle", "sessionID": "..." }`
+  - canonical: `{ "type": "session.idle", "properties": { "sessionID": "..." } }`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -189,6 +219,7 @@ notify = ["/absolute/path/to/anot", "codex"]
   - `anot claude`: Processes a Claude Code hook event from stdin and emits JSON hook output. Used by the hooks you configure.
   - `anot init codex`: Interactive setup for Codex `notify` in `config.toml`. If no path is provided, you’ll be prompted to choose.
   - `anot codex [<notification-json>]`: Processes a Codex notification payload. Used by the hooks you configure.
+  - `anot opencode [<event-json>]`: Processes an OpenCode event payload (from CLI arg or stdin) and shows desktop notifications.
 
 View help: `anot --help`, `anot init --help`
 
@@ -223,6 +254,23 @@ echo '{
 }' | anot codex
 ```
 
+You can also simulate an OpenCode event:
+
+```bash
+echo '{
+  "sessionID": "abc123",
+  "type": "session.idle"
+}' | anot opencode
+```
+
+And validate required-field errors:
+
+```bash
+echo '{
+  "type": "session.idle"
+}' | anot opencode
+```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Configuration File
@@ -239,7 +287,8 @@ echo '{
 {
   "version": 1,
   "claude": { "pretend": true, "sound": true },
-  "codex": { "pretend": false, "sound": true }
+  "codex": { "pretend": false, "sound": true },
+  "opencode": { "pretend": false, "sound": true }
 }
 ```
 
@@ -250,6 +299,8 @@ echo '{
 - `claude.sound` (macOS only): When `true`, `anot` plays a notification sound for Claude notifications.
 - `codex.pretend` (macOS only): When `true`, `anot` attempts to pretend to be the ChatGPT app for notifications. The ChatGPT app appears to enforce stricter checks, so pretending is unreliable. It’s recommended to keep this `false` so the Codex/ChatGPT icon is shown as the content image instead.
 - `codex.sound` (macOS only): When `true`, `anot` plays a notification sound for Codex notifications.
+- `opencode.pretend` (macOS only): When `true`, `anot` attempts to pretend to be the OpenCode app for notifications. If OpenCode is not installed or cannot be identified, `anot` falls back to Terminal.
+- `opencode.sound` (macOS only): When `true`, `anot` plays a notification sound for OpenCode notifications.
 
 Defaults are `claude.pretend = true`, `codex.pretend = false`.
 

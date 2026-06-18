@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Error;
-use clap::{CommandFactory, Parser, Subcommand, command};
+use clap::{CommandFactory, Parser, Subcommand};
 use std::sync::OnceLock;
 use tracing::{debug, error};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
@@ -11,6 +11,7 @@ use crate::{
     processors::{
         claude::input_and_output::process_claude_input,
         codex::input_and_output::process_codex_input,
+        opencode::input_and_output::process_opencode_input,
     },
 };
 
@@ -40,6 +41,13 @@ enum Commands {
         /// Notification JSON passed by Codex as a single CLI arg. If absent, read stdin.
         notification: Option<String>,
     },
+    #[command(
+        about = "Process OpenCode events and send desktop notifications (pipe an OpenCode event JSON payload to stdin)"
+    )]
+    Opencode {
+        #[arg(help = "Event JSON passed as a single CLI arg. If absent, read stdin.")]
+        event: Option<String>,
+    },
     /// Initialize configuration for agent notifications
     Init {
         #[command(subcommand)]
@@ -50,15 +58,18 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum InitCommands {
-    /// Initialize Claude Code configuration with notification hooks
     Claude {
-        /// Path to Claude Code settings.json file (optional)
+        #[arg(help = "Path to Claude Code settings.json file (optional)")]
         claude_config_path: Option<PathBuf>,
     },
-    /// Initialize Codex configuration with notification hooks
     Codex {
-        /// Path to Codex config.toml file (optional)
+        #[arg(help = "Path to Codex config.toml file (optional)")]
         codex_config_path: Option<PathBuf>,
+    },
+    #[command(about = "Install an OpenCode plugin that forwards OpenCode events to this tool")]
+    Opencode {
+        #[arg(help = "Path to OpenCode plugin file (optional)")]
+        opencode_plugin_path: Option<PathBuf>,
     },
 }
 
@@ -100,6 +111,16 @@ fn main() -> Result<(), Error> {
                 error!(error = %e, "failed to process Codex input");
             }
         }
+        Some(Commands::Opencode { event }) => {
+            let input = match event {
+                Some(s) => s.clone(),
+                None => utils::catch_stdin(),
+            };
+            if let Err(e) = process_opencode_input(input, &config) {
+                error!(error = %e, "failed to process OpenCode input");
+                return Err(e);
+            }
+        }
         Some(Commands::Init { command }) => match command {
             Some(InitCommands::Claude { claude_config_path }) => {
                 crate::processors::claude::init::initialize_claude_configuration(
@@ -108,6 +129,13 @@ fn main() -> Result<(), Error> {
             }
             Some(InitCommands::Codex { codex_config_path }) => {
                 crate::processors::codex::init::initialize_codex_configuration(codex_config_path)?;
+            }
+            Some(InitCommands::Opencode {
+                opencode_plugin_path,
+            }) => {
+                crate::processors::opencode::init::initialize_opencode_configuration(
+                    opencode_plugin_path,
+                )?;
             }
             None => {
                 let mut cmd = Cli::command();

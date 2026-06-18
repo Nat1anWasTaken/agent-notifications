@@ -27,3 +27,5 @@ target
 
 # IDE directories
 .vscode/
+
+.opencode/
